@@ -11,22 +11,58 @@ impl Grammar {
 }
 
 #[derive(Debug, PartialEq)]
-struct Rule;
+struct Rule {
+    name: String,
+    body: Vec<Matcher>
+}
+
+impl Rule {
+    fn new(name: String, body: Vec<Matcher>) -> Self {
+        if name.starts_with("@") {
+            panic!("Rule names beginning with @ are reserved")
+        }
+        Rule { name, body }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+struct Matcher;
 
 fn main() {
     println!("Hello, world!");
 }
 
 syntax_abuse::tests! {
-    #[test]
-    #[should_panic]
-    fn empty_rules() {
-        Grammar::new(Vec::new());
+
+    tests! {
+        grammar:
+
+        #[test]
+        #[should_panic]
+        fn empty_rules() {
+            Grammar::new(vec![]);
+        }
+
+        testcase! {
+            non_empty_rules,
+            Grammar::new(vec![Rule::new(String::from("Test"), vec![])]),
+            Grammar(vec![Rule::new(String::from("Test"), vec![])])
+        }
     }
 
-    testcase! {
-        non_empty_rules,
-        Grammar::new(vec![Rule]),
-        Grammar(vec![Rule])
+    tests! {
+        rule:
+
+        #[test]
+        #[should_panic]
+        fn reserved_name() {
+            Rule::new(String::from("@reserved"), vec![]);
+        }
+
+        testcase! {
+            valid_rule,
+            Rule::new(String::from("Rule"), vec![Matcher]),
+            Rule { name: String::from("Rule"), body: vec![Matcher] }
+        }
     }
 }
