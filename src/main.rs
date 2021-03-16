@@ -45,12 +45,23 @@ macro_rules! matcher {
     ($rule:ident) => {
         vec![Matcher::Rule(String::from(stringify!($rule)))]
     };
-    (@oneof : $str:expr) => {
+    ([ $str:expr ]) => {
         vec![Matcher::OneOf($str.chars().collect::<Vec<_>>())]
     };
     ($str:expr) => {
         $str.chars().map(Matcher::Literal).collect::<Vec<_>>()
     };
+}
+
+macro_rules! rule {
+    ($name:ident -> $($matchers:tt),*) => {
+        Rule::new(
+            String::from(stringify!($name)),
+            vec![
+                $(matcher!($matchers)),*
+            ].into_iter().flatten().collect::<Vec<_>>()
+        )
+    }
 }
 
 fn main() {
@@ -89,6 +100,25 @@ syntax_abuse::tests! {
             Rule::new(String::from("Rule"), vec![]),
             Rule { name: String::from("Rule"), body: vec![] }
         }
+
+        testcase! {
+            rule_macro,
+            rule!(Rule -> "literal", ["oneof"], Rule),
+            Rule {
+                name: String::from("Rule"),
+                body: vec![
+                    Matcher::Literal('l'),
+                    Matcher::Literal('i'),
+                    Matcher::Literal('t'),
+                    Matcher::Literal('e'),
+                    Matcher::Literal('r'),
+                    Matcher::Literal('a'),
+                    Matcher::Literal('l'),
+                    Matcher::OneOf(vec!['o', 'n', 'e', 'o', 'f']),
+                    Matcher::Rule(String::from("Rule"))
+                ]
+            }
+        }
     }
 
     tests! {
@@ -102,7 +132,7 @@ syntax_abuse::tests! {
 
         testcase! {
             oneof,
-            &matcher!(@oneof:"12345")[0],
+            &matcher!(["12345"])[0],
             &Matcher::OneOf(vec!['1', '2', '3', '4', '5'])
         }
 
