@@ -1,3 +1,12 @@
+// Sum     -> Sum     [+-] Product
+// Sum     -> Product
+// Product -> Product [*/] Factor
+// Product -> Factor
+// Factor  -> '(' Sum ')'
+// Factor  -> Number
+// Number  -> [0-9] Number
+// Number  -> [0-9]
+
 #[derive(Debug, PartialEq)]
 struct Grammar(Vec<Rule>);
 
@@ -26,7 +35,23 @@ impl Rule {
 }
 
 #[derive(Debug, PartialEq)]
-struct Matcher;
+enum Matcher {
+    Rule(String),
+    Literal(char),
+    OneOf(Vec<char>)
+}
+
+macro_rules! matcher {
+    ($rule:ident) => {
+        vec![Matcher::Rule(String::from(stringify!($rule)))]
+    };
+    (@oneof : $str:expr) => {
+        vec![Matcher::OneOf($str.chars().collect::<Vec<_>>())]
+    };
+    ($str:expr) => {
+        $str.chars().map(Matcher::Literal).collect::<Vec<_>>()
+    };
+}
 
 fn main() {
     println!("Hello, world!");
@@ -61,8 +86,42 @@ syntax_abuse::tests! {
 
         testcase! {
             valid_rule,
-            Rule::new(String::from("Rule"), vec![Matcher]),
-            Rule { name: String::from("Rule"), body: vec![Matcher] }
+            Rule::new(String::from("Rule"), vec![]),
+            Rule { name: String::from("Rule"), body: vec![] }
+        }
+    }
+
+    tests! {
+        matcher:
+
+        testcase! {
+            rule,
+            &matcher!(Rule)[0],
+            &Matcher::Rule(String::from("Rule"))
+        }
+
+        testcase! {
+            oneof,
+            &matcher!(@oneof:"12345")[0],
+            &Matcher::OneOf(vec!['1', '2', '3', '4', '5'])
+        }
+
+        testcase! {
+            single_literal,
+            matcher!("1"),
+            vec![Matcher::Literal('1')]
+        }
+
+        testcase! {
+            several_literals,
+            matcher!("12345"),
+            vec![
+                Matcher::Literal('1'),
+                Matcher::Literal('2'),
+                Matcher::Literal('3'),
+                Matcher::Literal('4'),
+                Matcher::Literal('5')
+            ]
         }
     }
 }
