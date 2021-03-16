@@ -41,9 +41,11 @@ enum Matcher {
     OneOf(Vec<char>)
 }
 
+#[macro_export]
+#[doc(hidden)]
 macro_rules! matcher {
     ($rule:ident) => {
-        vec![Matcher::Rule(String::from(stringify!($rule)))]
+        vec![Matcher::Rule(String::from(::std::stringify!($rule)))]
     };
     ([ $str:expr ]) => {
         vec![Matcher::OneOf($str.chars().collect::<Vec<_>>())]
@@ -53,19 +55,44 @@ macro_rules! matcher {
     };
 }
 
+#[macro_export]
+#[doc(hidden)]
 macro_rules! rule {
     ($name:ident -> $($matchers:tt),*) => {
         Rule::new(
-            String::from(stringify!($name)),
+            String::from(::std::stringify!($name)),
             vec![
-                $(matcher!($matchers)),*
+                $($crate::matcher!($matchers)),*
             ].into_iter().flatten().collect::<Vec<_>>()
         )
     }
 }
 
+#[macro_export]
+#[doc(hidden)]
+macro_rules! grammar_aux {
+    (@[][$($rules:expr)*]) => {
+        Grammar::new(vec![$($rules),*])
+    };
+    (@[$($rule:tt)+][$($rules:expr)*]) => {
+        $crate::grammar_aux!(@[][$($rules)* $crate::rule!($($rule)*)]);
+    };
+    (@[$($rule:tt)*][$($rules:expr),*] ; $($rest:tt)*) => {
+        $crate::grammar_aux!(@[][$($rules)* $crate::rule!($($rule)*)] $($rest)*)
+    };
+    (@[$($acc:tt)*][$($rules:expr)*] $first:tt $($rest:tt)*) => {
+        $crate::grammar_aux!(@[$($acc)* $first][$($rules)*] $($rest)*)
+    };
+}
+
+#[macro_export]
+macro_rules! grammar {
+    ($($rules:tt)+) => {
+        $crate::grammar_aux!(@[][] $($rules)+)
+    };
+}
+
 fn main() {
-    println!("Hello, world!");
 }
 
 syntax_abuse::tests! {
@@ -83,6 +110,79 @@ syntax_abuse::tests! {
             non_empty_rules,
             Grammar::new(vec![Rule::new(String::from("Test"), vec![])]),
             Grammar(vec![Rule::new(String::from("Test"), vec![])])
+        }
+
+        testcase! {
+            grammar_macro,
+            grammar! {
+                Rule -> Rule2;
+                Rule2 -> "literal";
+            },
+            Grammar(vec![
+                Rule {
+                    name: String::from("Rule"),
+                    body: vec![Matcher::Rule(String::from("Rule2"))]
+                },
+                Rule {
+                    name: String::from("Rule2"),
+                    body: vec![
+                        Matcher::Literal('l'),
+                        Matcher::Literal('i'),
+                        Matcher::Literal('t'),
+                        Matcher::Literal('e'),
+                        Matcher::Literal('r'),
+                        Matcher::Literal('a'),
+                        Matcher::Literal('l')
+                    ]
+                }
+            ])
+        }
+
+        testcase! {
+            trailing_semi_is_optional,
+            grammar! {
+                Rule -> Rule2;
+                Rule2 -> "literal"
+            },
+            Grammar(vec![
+                Rule {
+                    name: String::from("Rule"),
+                    body: vec![Matcher::Rule(String::from("Rule2"))]
+                },
+                Rule {
+                    name: String::from("Rule2"),
+                    body: vec![
+                        Matcher::Literal('l'),
+                        Matcher::Literal('i'),
+                        Matcher::Literal('t'),
+                        Matcher::Literal('e'),
+                        Matcher::Literal('r'),
+                        Matcher::Literal('a'),
+                        Matcher::Literal('l')
+                    ]
+                }
+            ])
+        }
+
+        testcase! {
+            only_one_rule,
+            grammar! {
+                Rule -> "literal"
+            },
+            Grammar(vec![
+                Rule {
+                    name: String::from("Rule"),
+                    body: vec![
+                        Matcher::Literal('l'),
+                        Matcher::Literal('i'),
+                        Matcher::Literal('t'),
+                        Matcher::Literal('e'),
+                        Matcher::Literal('r'),
+                        Matcher::Literal('a'),
+                        Matcher::Literal('l')
+                    ]
+                }
+            ])
         }
     }
 
