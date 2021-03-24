@@ -1,4 +1,4 @@
-mod grammar;
+pub mod grammar;
 
 fn main() {
     let _grammar = grammar! {
