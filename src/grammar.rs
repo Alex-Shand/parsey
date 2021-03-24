@@ -16,7 +16,7 @@ impl Grammar {
         Grammar(rules)
     }
 
-    pub fn recognise<S: AsRef<str>>(&self, input: S) -> bool {
+    pub fn recognise<S>(&self, input: S) -> bool where S: AsRef<str> {
         let input = input.as_ref().chars().collect::<Vec<_>>();
         let mut parse_state = vec![
             self.get_rules_by_name(self.start_symbol()).iter()
@@ -57,11 +57,11 @@ impl Grammar {
     }
 
     fn start_symbol(&self) -> &str {
-        &self.0[0].name
+        &self.0[0].name()
     }
 
     fn get_rules_by_name(&self, name: &str) -> Vec<&Rule> {
-        self.0.iter().filter(|rule| rule.name == name).collect::<Vec<_>>()
+        self.0.iter().filter(|rule| rule.name() == name).collect::<Vec<_>>()
     }
 }
 
@@ -96,40 +96,11 @@ impl<'a> FromIterator<Item<'a>> for StateSet<'a> {
     }
 }
 
-/// [Grammar] rule
-#[derive(Debug, PartialEq)]
-pub struct Rule {
-    name: String,
-    body: Vec<Matcher>
-}
-
-impl Rule {
-    /// Construct a new rule with a specific name and body. Rule names cannot
-    /// begin with the `@` character.
-    ///
-    /// # Panics
-    /// If the rule name begins with `@`
-    pub fn new(name: String, body: Vec<Matcher>) -> Self {
-        assert!(
-            !name.starts_with("@"),
-            "Rule names beginning with @ are reserved"
-        );
-        Rule { name, body }
-    }
-
-    fn to_earley_item(&self, state: State) -> Item<'_> {
-        assert!(
-            state.progress <= self.body.len(),
-            "Progress is {} but the rule only has {} items",
-            state.progress,
-            self.body.len()
-        );
-        Item { rule: &self, state: state }
-    }
-}
+mod rule;
+pub use rule::Rule;
 
 #[derive(Debug, PartialEq)]
-struct Item<'a> {
+pub struct Item<'a> {
     rule: &'a Rule,
     state: State
 }
@@ -141,7 +112,7 @@ enum ParseResult<'a> {
 
 impl Item<'_> {
     fn parse<'a>(&self, grammar: &'a Grammar) -> ParseResult<'a> {
-        if let Some(matcher) = self.rule.body.get(self.state.progress) {
+        if let Some(matcher) = self.rule.get(self.state.progress) {
             match matcher {
                 Matcher::Rule(name) =>
                     ParseResult::Predict(grammar.get_rules_by_name(name)),
@@ -154,7 +125,7 @@ impl Item<'_> {
 }
 
 #[derive(Debug, PartialEq)]
-struct State {
+pub struct State {
     start: usize,
     progress: usize
 }
@@ -200,28 +171,6 @@ macro_rules! matcher {
     ($str:literal) => {
         $str.chars().map($crate::grammar::Matcher::Literal).collect::<Vec<_>>()
     };
-}
-
-/// Parses a single rule (without the trailing ;) on behalf of grammar! { }
-#[macro_export]
-#[doc(hidden)]
-macro_rules! rule {
-    // Rule syntax is RuleName -> body
-    // The rule name is a bareword as in matcher!() above.
-    // Conveniently (from matcher!()) all of the possible matcher syntaxes are
-    // parsed as a single token tree so the rule body can be a (possibly empty)
-    // list of token trees.
-    ($name:ident -> $($matchers:tt)*) => {
-        $crate::grammar::Rule::new(
-            String::from(::std::stringify!($name)),
-            vec![
-                // matcher! is used to parse each token tree in the body, the
-                // result is a Vec<Vec<Matcher>> which has to be flattened for
-                // Rule::new
-                $($crate::matcher!($matchers)),*
-            ].into_iter().flatten().collect::<Vec<_>>()
-        )
-    }
 }
 
 /// Helper for grammar! { }. Collects rules by finding each ; then passing the
@@ -374,13 +323,13 @@ syntax_abuse::tests! {
                 Rule2 -> "literal";
             },
             Grammar(vec![
-                Rule {
-                    name: String::from("Rule"),
-                    body: vec![Matcher::Rule(String::from("Rule2"))]
-                },
-                Rule {
-                    name: String::from("Rule2"),
-                    body: vec![
+                Rule::new(
+                    String::from("Rule"),
+                    vec![Matcher::Rule(String::from("Rule2"))]
+                ),
+                Rule::new(
+                    String::from("Rule2"),
+                    vec![
                         Matcher::Literal('l'),
                         Matcher::Literal('i'),
                         Matcher::Literal('t'),
@@ -389,7 +338,7 @@ syntax_abuse::tests! {
                         Matcher::Literal('a'),
                         Matcher::Literal('l')
                     ]
-                }
+                )
             ])
         }
 
@@ -400,13 +349,13 @@ syntax_abuse::tests! {
                 Rule2 -> "literal"
             },
             Grammar(vec![
-                Rule {
-                    name: String::from("Rule"),
-                    body: vec![Matcher::Rule(String::from("Rule2"))]
-                },
-                Rule {
-                    name: String::from("Rule2"),
-                    body: vec![
+                Rule::new(
+                    String::from("Rule"),
+                    vec![Matcher::Rule(String::from("Rule2"))]
+                ),
+                Rule::new(
+                    String::from("Rule2"),
+                    vec![
                         Matcher::Literal('l'),
                         Matcher::Literal('i'),
                         Matcher::Literal('t'),
@@ -415,7 +364,7 @@ syntax_abuse::tests! {
                         Matcher::Literal('a'),
                         Matcher::Literal('l')
                     ]
-                }
+                )
             ])
         }
 
@@ -425,9 +374,9 @@ syntax_abuse::tests! {
                 Rule -> "literal"
             },
             Grammar(vec![
-                Rule {
-                    name: String::from("Rule"),
-                    body: vec![
+                Rule::new(
+                    String::from("Rule"),
+                    vec![
                         Matcher::Literal('l'),
                         Matcher::Literal('i'),
                         Matcher::Literal('t'),
@@ -436,7 +385,7 @@ syntax_abuse::tests! {
                         Matcher::Literal('a'),
                         Matcher::Literal('l')
                     ]
-                }
+                )
             ])
         }
 
@@ -453,51 +402,51 @@ syntax_abuse::tests! {
                 Number -> ["0123456789"];
             },
             Grammar(vec![
-                Rule {
-                    name: String::from("Sum"),
-                    body: vec![
+                Rule::new(
+                    String::from("Sum"),
+                    vec![
                         Matcher::Rule(String::from("Sum")),
                         Matcher::OneOf(vec!['+', '-']),
                         Matcher::Rule(String::from("Product"))
                     ]
-                },
-                Rule {
-                    name: String::from("Sum"),
-                    body: vec![
+                ),
+                Rule::new(
+                    String::from("Sum"),
+                    vec![
                         Matcher::Rule(String::from("Product"))
                     ]
-                },
-                Rule {
-                    name: String::from("Product"),
-                    body: vec![
+                ),
+                Rule::new(
+                    String::from("Product"),
+                    vec![
                         Matcher::Rule(String::from("Product")),
                         Matcher::OneOf(vec!['*', '/']),
                         Matcher::Rule(String::from("Factor"))
                     ]
-                },
-                Rule {
-                    name: String::from("Product"),
-                    body: vec![
+                ),
+                Rule::new(
+                    String::from("Product"),
+                    vec![
                         Matcher::Rule(String::from("Factor"))
                     ]
-                },
-                Rule {
-                    name: String::from("Factor"),
-                    body: vec![
+                ),
+                Rule::new(
+                    String::from("Factor"),
+                    vec![
                         Matcher::Literal('('),
                         Matcher::Rule(String::from("Sum")),
                         Matcher::Literal(')')
                     ]
-                },
-                Rule {
-                    name: String::from("Factor"),
-                    body: vec![
+                ),
+                Rule::new(
+                    String::from("Factor"),
+                    vec![
                         Matcher::Rule(String::from("Number"))
                     ]
-                },
-                Rule {
-                    name: String::from("Number"),
-                    body: vec![
+                ),
+                Rule::new(
+                    String::from("Number"),
+                    vec![
                         Matcher::OneOf(vec![
                             '0',
                             '1',
@@ -512,10 +461,10 @@ syntax_abuse::tests! {
                         ]),
                         Matcher::Rule(String::from("Number"))
                     ]
-                },
-                Rule {
-                    name: String::from("Number"),
-                    body: vec![
+                ),
+                Rule::new(
+                    String::from("Number"),
+                    vec![
                         Matcher::OneOf(vec![
                             '0',
                             '1',
@@ -529,43 +478,8 @@ syntax_abuse::tests! {
                             '9'
                         ])
                     ]
-                }
+                )
             ])
-        }
-    }
-
-    tests! {
-        rule:
-
-        #[test]
-        #[should_panic]
-        fn reserved_name() {
-            Rule::new(String::from("@reserved"), vec![]);
-        }
-
-        testcase! {
-            valid_rule,
-            Rule::new(String::from("Rule"), vec![]),
-            Rule { name: String::from("Rule"), body: vec![] }
-        }
-
-        testcase! {
-            rule_macro,
-            rule!(Rule -> "literal" ["oneof"] Rule),
-            Rule {
-                name: String::from("Rule"),
-                body: vec![
-                    Matcher::Literal('l'),
-                    Matcher::Literal('i'),
-                    Matcher::Literal('t'),
-                    Matcher::Literal('e'),
-                    Matcher::Literal('r'),
-                    Matcher::Literal('a'),
-                    Matcher::Literal('l'),
-                    Matcher::OneOf(vec!['o', 'n', 'e', 'o', 'f']),
-                    Matcher::Rule(String::from("Rule"))
-                ]
-            }
         }
     }
 
