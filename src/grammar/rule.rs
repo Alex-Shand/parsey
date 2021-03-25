@@ -1,34 +1,12 @@
-use super::{ Matcher, State, Item };
+use super::symbol::Symbol;
 
 use syntax_abuse as syntax;
-
-/// Parses a single rule (without the trailing ;) on behalf of grammar! { }
-#[macro_export]
-#[doc(hidden)]
-macro_rules! rule {
-    // Rule syntax is RuleName -> body
-    // The rule name is a bareword as in matcher!() above.
-    // Conveniently (from matcher!()) all of the possible matcher syntaxes are
-    // parsed as a single token tree so the rule body can be a (possibly empty)
-    // list of token trees.
-    ($name:ident -> $($matchers:tt)*) => {
-        $crate::grammar::Rule::new(
-            String::from(::std::stringify!($name)),
-            vec![
-                // matcher! is used to parse each token tree in the body, the
-                // result is a Vec<Vec<Matcher>> which has to be flattened for
-                // Rule::new
-                $($crate::matcher!($matchers)),*
-            ].into_iter().flatten().collect::<Vec<_>>()
-        )
-    }
-}
 
 /// [Grammar] rule
 #[derive(Debug, PartialEq)]
 pub struct Rule {
     name: String,
-    body: Vec<Matcher>
+    body: Vec<Symbol>
 }
 
 impl Rule {
@@ -37,7 +15,7 @@ impl Rule {
     ///
     /// # Panics
     /// If the rule name begins with `@`
-    pub fn new(name: String, body: Vec<Matcher>) -> Self {
+    pub fn new(name: String, body: Vec<Symbol>) -> Self {
         assert!(
             !name.starts_with("@"),
             "Rule names beginning with @ are reserved"
@@ -47,18 +25,8 @@ impl Rule {
 
     syntax::getter! { pub name : &str }
 
-    pub fn get(&self, index: usize) -> Option<&Matcher> {
+    pub fn get(&self, index: usize) -> Option<&Symbol> {
         self.body.get(index)
-    }
-    
-    pub fn to_earley_item(&self, state: State) -> Item<'_> {
-        assert!(
-            state.progress <= self.body.len(),
-            "Progress is {} but the rule only has {} items",
-            state.progress,
-            self.body.len()
-        );
-        Item { rule: &self, state: state }
     }
 }
 
@@ -82,15 +50,15 @@ syntax::tests! {
         Rule {
             name: String::from("Rule"),
             body: vec![
-                Matcher::Literal('l'),
-                Matcher::Literal('i'),
-                Matcher::Literal('t'),
-                Matcher::Literal('e'),
-                Matcher::Literal('r'),
-                Matcher::Literal('a'),
-                Matcher::Literal('l'),
-                Matcher::OneOf(vec!['o', 'n', 'e', 'o', 'f']),
-                Matcher::Rule(String::from("Rule"))
+                Symbol::Literal('l'),
+                Symbol::Literal('i'),
+                Symbol::Literal('t'),
+                Symbol::Literal('e'),
+                Symbol::Literal('r'),
+                Symbol::Literal('a'),
+                Symbol::Literal('l'),
+                Symbol::OneOf(vec!['o', 'n', 'e', 'o', 'f']),
+                Symbol::Rule(String::from("Rule"))
             ]
         }
     }
