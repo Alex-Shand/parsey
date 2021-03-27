@@ -1,6 +1,6 @@
-use super::Grammar;
-use super::rule::Rule;
-use super::symbol::Symbol;
+use grammar::{ Grammar, Rule, Symbol };
+
+pub mod grammar;
 
 pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
     let input = input.as_ref().chars().collect::<Vec<_>>();

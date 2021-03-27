@@ -1,4 +1,4 @@
-pub mod grammar;
+use parsey::grammar;
 
 fn main() {
     let _grammar = grammar! {

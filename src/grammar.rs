@@ -18,14 +18,14 @@ impl Grammar {
     }
 
     pub fn recognise<S>(&self, input: S) -> bool where S: AsRef<str> {
-        earley::recognise(&self, input)
+        super::recognise(&self, input)
     }
     
-    fn start_symbol(&self) -> &str {
+    pub fn start_symbol(&self) -> &str {
         &self.0[0].name()
     }
 
-    fn get_rules_by_name(&self, name: &str) -> Vec<&Rule> {
+    pub fn get_rules_by_name(&self, name: &str) -> Vec<&Rule> {
         self.0.iter().filter(|rule| rule.name() == name).collect::<Vec<_>>()
     }
 }
@@ -37,8 +37,6 @@ pub use rule::Rule;
 
 mod symbol;
 pub use symbol::Symbol;
-
-mod earley;
 
 syntax_abuse::tests! {
 
