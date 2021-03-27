@@ -1,6 +1,9 @@
-use grammar::{ Grammar, Rule, Symbol };
+use grammar::Grammar;
+use state::{ StateSet, Item, State, ParseResult };
 
 pub mod grammar;
+
+mod state;
 
 pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
     let input = input.as_ref().chars().collect::<Vec<_>>();
@@ -32,64 +35,4 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
         }
     }
     todo!("Did the parse work?")
-}
-
-struct StateSet<'a> {
-    items: Vec<Item<'a>>,
-    next: usize
-}
-
-impl<'a> StateSet<'a> {
-    fn new(items: Vec<Item<'a>>) -> Self {
-        StateSet { items, next: 0 }
-    }
-    
-    fn next(&mut self) -> Option<&Item<'a>> {
-        let current = self.next;
-        self.next += 1;
-        self.items.get(current)
-    }
-
-    fn add(&mut self, new_items: Vec<Item<'a>>) {
-        for item in new_items {
-            if !self.items.contains(&item) {
-                self.items.push(item)
-            }
-        }
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct Item<'a> {
-    rule: &'a Rule,
-    state: State
-}
-
-#[derive(Debug, PartialEq, Copy, Clone)]
-pub struct State {
-    start: usize,
-    progress: usize
-}
-
-#[derive(Debug)]
-enum ParseResult<'a> {
-    Predict(Vec<&'a Rule>)
-}
-
-impl<'a> Item<'a> {
-    fn parse<'b>(&self, grammar: &'b Grammar) -> ParseResult<'b> {
-        if let Some(matcher) = self.rule.get(self.state.progress) {
-            match matcher {
-                Symbol::Rule(name) =>
-                    ParseResult::Predict(grammar.get_rules_by_name(name)),
-                _ => todo!("Scan")
-            }
-        } else {
-            todo!("Completion")
-        }
-    }
-
-    fn from_rules(rules: Vec<&'a Rule>, state: State) -> Vec<Self> {
-        rules.into_iter().map(|rule| Item { rule, state }).collect::<Vec<_>>()
-    }
 }
