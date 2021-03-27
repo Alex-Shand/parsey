@@ -1,4 +1,4 @@
-use super::{ Grammar };
+use super::Grammar;
 use super::rule::Rule;
 use super::symbol::Symbol;
 
@@ -12,12 +12,8 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
             )
         )
     ];
-    let mut current_position = 0;
-    loop {
-        if current_position >= input.len() {
-            break;
-        }
-        
+
+    for current_position in 0..input.len() {
         if let Some(current_state) = parse_state.get_mut(current_position) {
             while let Some(item) = current_state.next() {
                 match item.parse(grammar) {
@@ -32,10 +28,8 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
                 }
             }
         } else {
-            break;
+            todo!("Ran out of state before running out of input, this should be an error");
         }
-        
-        current_position += 1;
     }
     todo!("Did the parse work?")
 }
@@ -71,6 +65,12 @@ pub struct Item<'a> {
     state: State
 }
 
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub struct State {
+    start: usize,
+    progress: usize
+}
+
 #[derive(Debug)]
 enum ParseResult<'a> {
     Predict(Vec<&'a Rule>)
@@ -92,10 +92,4 @@ impl<'a> Item<'a> {
     fn from_rules(rules: Vec<&'a Rule>, state: State) -> Vec<Self> {
         rules.into_iter().map(|rule| Item { rule, state }).collect::<Vec<_>>()
     }
-}
-
-#[derive(Debug, PartialEq, Copy, Clone)]
-pub struct State {
-    start: usize,
-    progress: usize
 }
