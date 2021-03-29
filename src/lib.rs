@@ -21,15 +21,22 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
     for current_position in 0..input.len() {
         if let Some(current_state) = parse_state.get_mut(current_position) {
             while let Some(item) = current_state.next() {
-                match item.parse(grammar) {
-                    ParseResult::Predict(rules) => {
+                match item.parse(grammar, input[current_position]) {
+                    ParseResult::Predict(rules) =>
                         current_state.add(
                             Item::from_rules(
                                 rules,
-                                State { start: current_position, progress: 0 }
+                                State {
+                                    start: current_position,
+                                    progress: 0
+                                }
                             )
-                        )
-                    }
+                        ),
+                    ParseResult::Scan(item) =>
+                        match item {
+                            Some(_) => todo!("Scan"),
+                            None => ()
+                        }
                 }
             }
         } else {

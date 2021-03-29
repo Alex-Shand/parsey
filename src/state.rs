@@ -39,16 +39,29 @@ pub struct State {
 
 #[derive(Debug)]
 pub enum ParseResult<'a> {
-    Predict(Vec<&'a Rule>)
+    Predict(Vec<&'a Rule>),
+    Scan(Option<Item<'a>>)
 }
 
 impl<'a> Item<'a> {
-    pub fn parse<'b>(&self, grammar: &'b Grammar) -> ParseResult<'b> {
+    pub fn parse<'b>(
+        &self,
+        grammar: &'b Grammar,
+        next_char: char
+    ) -> ParseResult<'b> {
         if let Some(matcher) = self.rule.get(self.state.progress) {
             match matcher {
                 Symbol::Rule(name) =>
                     ParseResult::Predict(grammar.get_rules_by_name(name)),
-                _ => todo!("Scan")
+                Symbol::Literal(c) =>
+                    ParseResult::Scan(
+                        if *c == next_char {
+                            todo!("Scan Literal")
+                        } else {
+                            None
+                        }
+                    ),
+                Symbol::OneOf(_) => todo!("Scan OneOf")
             }
         } else {
             todo!("Completion")
