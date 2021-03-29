@@ -1,7 +1,7 @@
-/// Valid symbols for a [Rule] body
+/// Valid symbols for a [Rule](super::Rule) body
 #[derive(Debug, PartialEq)]
 pub enum Symbol {
-    /// Succeeds if the [Rule] with the specified name succeeds
+    /// Succeeds if the [Rule](super::Rule) with the specified name succeeds
     Rule(String),
     /// Succeeds if the next character in the input matches the contained
     /// character

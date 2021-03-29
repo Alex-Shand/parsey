@@ -88,24 +88,24 @@ macro_rules! grammar_aux {
 ///     ...
 /// }
 /// ```
-/// Within the rule body an unquoted rule name becomes [Matcher::Rule]
+/// Within the rule body an unquoted rule name becomes [Symbol::Rule]
 /// ```
 /// grammar! {
-///     // Rule::new("Rule", vec![Matcher::Rule("AnotherRule")])
+///     // Rule::new("Rule", vec![Symbol::Rule("AnotherRule")])
 ///     Rule -> AnotherRule;
 /// }
 /// ```
-/// A bare string becomes a sequence of [Matcher::Literal] (one for each character)
+/// A bare string becomes a sequence of [Symbol::Literal] (one for each character)
 /// ```
 /// grammar! {
-///     // Rule::new("Rule", vec![Matcher::Literal('1'), Matcher::Literal('2')])
+///     // Rule::new("Rule", vec![Symbol::Literal('1'), Symbol::Literal('2')])
 ///     Rule -> "12";
 /// }
 /// ```
-/// A string wrapped in `[]` is [Matcher::OneOf]
+/// A string wrapped in `[]` is [Symbol::OneOf]
 /// ```
 /// grammar! {
-///     // Rule::new("Rule", vec![Matcher::OneOf(vec!['1','2'])])
+///     // Rule::new("Rule", vec![Symbol::OneOf(vec!['1','2'])])
 ///     Rule -> ["12"];
 /// }
 /// ```
@@ -126,6 +126,13 @@ macro_rules! grammar_aux {
 ///     Number -> ["0123456789"];
 /// }
 /// ```
+///
+/// [Grammar]: super::Grammar
+/// [Grammar::new]: super::Grammar::new
+/// [Rule::new]: super::Rule::new
+/// [Symbol::OneOf]: super::Symbol::OneOf
+/// [Symbol::Literal]: super::Symbol::Literal
+/// [Symbol::Rule]: super::Symbol::Rule
 #[macro_export]
 macro_rules! grammar {
     ($($rules:tt)+) => {

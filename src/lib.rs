@@ -5,6 +5,8 @@ pub mod grammar;
 
 mod state;
 
+/// Return `true` if the input string is in the language described by
+/// `grammar`, false otherwise.
 pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
     let input = input.as_ref().chars().collect::<Vec<_>>();
     let mut parse_state = vec![
@@ -35,4 +37,47 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
         }
     }
     todo!("Did the parse work?")
+}
+
+syntax_abuse::tests! {
+
+    macro_rules! tc {
+        ($name:ident, $input:expr, $expected:expr) => {
+            testcase! {
+                $name,
+                recognise(
+                    &grammar! {
+                        Sum -> Sum ["+-"] Product;
+                        Sum -> Product;
+                        Product -> Product ["*/"] Factor;
+                        Product -> Factor;
+                        Factor -> "(" Sum ")";
+                        Factor -> Number;
+                        Number -> ["0123456789"] Number;
+                        Number -> ["0123456789"];
+                    },
+                    $input
+                ),
+                $expected
+            }
+        }
+    }
+
+    tc! {
+        success,
+        "1+2+3-4+5*(6+7)/106",
+        true
+    }
+
+    tc! {
+        truncated_input,
+        "1+",
+        false
+    }
+
+    tc! {
+        invalid_character,
+        "1%2",
+        false
+    }
 }

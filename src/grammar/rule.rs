@@ -2,7 +2,7 @@ use super::symbol::Symbol;
 
 use syntax_abuse as syntax;
 
-/// [Grammar] rule
+/// [Grammar](super::Grammar) rule
 #[derive(Debug, PartialEq)]
 pub struct Rule {
     name: String,
