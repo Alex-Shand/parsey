@@ -1,3 +1,5 @@
+use std::fmt;
+
 pub use rule::Rule;
 pub use symbol::Symbol;
 
@@ -32,6 +34,16 @@ impl Grammar {
 
     pub fn get_rules_by_name(&self, name: &str) -> Vec<&Rule> {
         self.0.iter().filter(|rule| rule.name() == name).collect::<Vec<_>>()
+    }
+}
+
+impl fmt::Display for Grammar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.0.iter().map(|r| r.to_string()).collect::<Vec<_>>().join("\n")
+        )
     }
 }
 

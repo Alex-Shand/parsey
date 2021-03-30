@@ -1,5 +1,8 @@
+use std::fmt;
+
 use super::grammar::{ Grammar, Rule, Symbol };
 
+#[derive(Debug)]
 pub struct StateSet<'a> {
     items: Vec<Item<'a>>,
     next: usize
@@ -23,6 +26,23 @@ impl<'a> StateSet<'a> {
             }
         }
     }
+
+    pub fn items(&self) -> &Vec<Item<'a>> {
+        &self.items
+    }
+}
+
+impl fmt::Display for StateSet<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.items.iter()
+                .map(|i| i.to_string())
+                .collect::<Vec<_>>()
+                .join("\n")
+        )
+    }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -40,7 +60,8 @@ pub struct State {
 #[derive(Debug)]
 pub enum ParseResult<'a> {
     Predict(Vec<&'a Rule>),
-    Scan(Option<Item<'a>>)
+    Scan(Option<Item<'a>>),
+    Complete((&'a str, usize))
 }
 
 impl<'a> Item<'a> {
@@ -53,14 +74,15 @@ impl<'a> Item<'a> {
             match matcher {
                 Symbol::Rule(name) =>
                     ParseResult::Predict(grammar.get_rules_by_name(name)),
-                Symbol::Literal(c) =>
+                Symbol::Literal(c) => {
                     ParseResult::Scan(
                         if *c == next_char {
                             todo!("Scan Literal")
                         } else {
                             None
                         }
-                    ),
+                    )
+                }
                 Symbol::OneOf(cs) =>
                     ParseResult::Scan(
                         if cs.contains(&next_char) {
@@ -71,7 +93,18 @@ impl<'a> Item<'a> {
                     )
             }
         } else {
-            todo!("Completion")
+            ParseResult::Complete((self.rule.name(), self.state.start))
+        }
+    }
+
+    pub fn next_name(&self) -> Option<&str> {
+        if let Some(symbol) = self.rule.get(self.state.progress) {
+            match symbol {
+                Symbol::Rule(name) => Some(name),
+                _ => None
+            }
+        } else {
+            None
         }
     }
 
@@ -79,9 +112,18 @@ impl<'a> Item<'a> {
         rules.into_iter().map(|rule| Item { rule, state }).collect::<Vec<_>>()
     }
 
-    fn advanced(&self) -> Self {
+    pub fn advanced(&self) -> Self {
         let mut new = *self;
         new.state.progress += 1;
         new
+    }
+}
+
+impl fmt::Display for Item<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut body = self.rule.body().to_owned();
+        body.insert(self.state.progress, Symbol::Rule(String::from("\u{25CF}")));
+        let body = body.into_iter().map(|s| s.to_string()).collect::<Vec<_>>().join(" ");
+        write!(f, "{} -> {} ({})", self.rule.name(), body, self.state.start)
     }
 }

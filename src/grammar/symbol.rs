@@ -1,7 +1,8 @@
 use std::collections::HashSet;
+use std::fmt;
 
 /// Valid symbols for a [Rule](super::Rule) body
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Symbol {
     /// Succeeds if the [Rule](super::Rule) with the specified name succeeds
     Rule(String),
@@ -11,6 +12,20 @@ pub enum Symbol {
     /// Succeeds if the next character in the input matches any of the contained
     /// characters
     OneOf(HashSet<char>)
+}
+
+impl fmt::Display for Symbol {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Symbol::Rule(name) => write!(f, "{}", name),
+            Symbol::Literal(text) => write!(f, "'{}'", text),
+            Symbol::OneOf(chars) => {
+                let mut chars = chars.into_iter().collect::<Vec<_>>();
+                chars.sort_unstable();
+                write!(f, "[{}]", chars.into_iter().collect::<String>())
+            }
+        }
+    }
 }
 
 syntax_abuse::tests! {

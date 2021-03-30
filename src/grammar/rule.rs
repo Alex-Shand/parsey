@@ -1,3 +1,5 @@
+use std::fmt;
+
 use super::symbol::Symbol;
 
 use syntax_abuse as syntax;
@@ -24,9 +26,23 @@ impl Rule {
     }
 
     syntax::getter! { pub name : &str }
+    syntax::getter! { pub body : &[Symbol] }
 
     pub fn get(&self, index: usize) -> Option<&Symbol> {
         self.body.get(index)
+    }
+}
+
+impl fmt::Display for Rule {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} -> {}",
+            self.name,
+            self.body.iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>().join(" ")
+        )
     }
 }
 
