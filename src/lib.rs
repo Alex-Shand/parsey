@@ -19,6 +19,7 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
     ];
 
     for current_position in 0..input.len() {
+        let mut to_add = Vec::new();
         if let Some(current_state) = parse_state.get_mut(current_position) {
             while let Some(item) = current_state.next() {
                 match item.parse(grammar, input[current_position]) {
@@ -32,12 +33,16 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
                                 }
                             )
                         ),
-                    ParseResult::Scan(item) =>
+                    ParseResult::Scan(item) => {
                         match item {
-                            Some(_) => todo!("Scan"),
+                            Some(item) => to_add.push(item),
                             None => ()
                         }
+                    }
                 }
+            }
+            if !to_add.is_empty() {
+                parse_state.push(StateSet::new(to_add));
             }
         } else {
             todo!("Ran out of state before running out of input, this should be an error");

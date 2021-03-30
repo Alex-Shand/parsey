@@ -138,7 +138,7 @@ syntax_abuse::tests! {
                 String::from("Sum"),
                 vec![
                     Symbol::Rule(String::from("Sum")),
-                    Symbol::OneOf(vec!['+', '-']),
+                    Symbol::OneOf(hashset!['+', '-']),
                     Symbol::Rule(String::from("Product"))
                 ]
             ),
@@ -152,7 +152,7 @@ syntax_abuse::tests! {
                 String::from("Product"),
                 vec![
                     Symbol::Rule(String::from("Product")),
-                    Symbol::OneOf(vec!['*', '/']),
+                    Symbol::OneOf(hashset!['*', '/']),
                     Symbol::Rule(String::from("Factor"))
                 ]
             ),
@@ -179,7 +179,7 @@ syntax_abuse::tests! {
             Rule::new(
                 String::from("Number"),
                 vec![
-                    Symbol::OneOf(vec![
+                    Symbol::OneOf(hashset![
                         '0',
                         '1',
                         '2',
@@ -197,7 +197,7 @@ syntax_abuse::tests! {
             Rule::new(
                 String::from("Number"),
                 vec![
-                    Symbol::OneOf(vec![
+                    Symbol::OneOf(hashset![
                         '0',
                         '1',
                         '2',

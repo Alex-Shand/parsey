@@ -25,7 +25,7 @@ impl<'a> StateSet<'a> {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Item<'a> {
     rule: &'a Rule,
     state: State
@@ -44,11 +44,11 @@ pub enum ParseResult<'a> {
 }
 
 impl<'a> Item<'a> {
-    pub fn parse<'b>(
+    pub fn parse(
         &self,
-        grammar: &'b Grammar,
+        grammar: &'a Grammar,
         next_char: char
-    ) -> ParseResult<'b> {
+    ) -> ParseResult<'a> {
         if let Some(matcher) = self.rule.get(self.state.progress) {
             match matcher {
                 Symbol::Rule(name) =>
@@ -61,7 +61,14 @@ impl<'a> Item<'a> {
                             None
                         }
                     ),
-                Symbol::OneOf(_) => todo!("Scan OneOf")
+                Symbol::OneOf(cs) =>
+                    ParseResult::Scan(
+                        if cs.contains(&next_char) {
+                            Some(self.advanced())
+                        } else {
+                            None
+                        }
+                    )
             }
         } else {
             todo!("Completion")
@@ -70,5 +77,11 @@ impl<'a> Item<'a> {
 
     pub fn from_rules(rules: Vec<&'a Rule>, state: State) -> Vec<Self> {
         rules.into_iter().map(|rule| Item { rule, state }).collect::<Vec<_>>()
+    }
+
+    fn advanced(&self) -> Self {
+        let mut new = *self;
+        new.state.progress += 1;
+        new
     }
 }

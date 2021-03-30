@@ -19,7 +19,11 @@ macro_rules! symbol {
     // to a regex character class and makes the whole thing one token tree in
     // rule!)
     ([ $str:literal ]) => {
-        vec![$crate::grammar::Symbol::OneOf($str.chars().collect::<Vec<_>>())]
+        vec![
+            $crate::grammar::Symbol::OneOf(
+                $str.chars().collect::<::std::collections::HashSet<_>>()
+            )
+        ]
     };
     // A string literal without [] is a sequence of Literal matchers (one for
     // each character in the string)
@@ -140,4 +144,11 @@ macro_rules! grammar {
         // accumulators
         $crate::grammar_aux!([][] $($rules)+)
     };
+}
+
+#[cfg(test)]
+macro_rules! hashset {
+    ($($e:expr),*) => {
+        vec![$($e),*].into_iter().collect::<::std::collections::HashSet<_>>()
+    }
 }

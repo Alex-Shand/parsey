@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 /// Valid symbols for a [Rule](super::Rule) body
 #[derive(Debug, PartialEq)]
 pub enum Symbol {
@@ -8,7 +10,7 @@ pub enum Symbol {
     Literal(char),
     /// Succeeds if the next character in the input matches any of the contained
     /// characters
-    OneOf(Vec<char>)
+    OneOf(HashSet<char>)
 }
 
 syntax_abuse::tests! {
@@ -22,7 +24,7 @@ syntax_abuse::tests! {
     testcase! {
         oneof,
         &symbol!(["12345"])[0],
-        &Symbol::OneOf(vec!['1', '2', '3', '4', '5'])
+        &Symbol::OneOf(hashset!['1', '2', '3', '4', '5'])
     }
 
     testcase! {
