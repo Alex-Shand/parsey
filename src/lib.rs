@@ -19,45 +19,8 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
     ];
 
     for current_position in 0..input.len() {
-        let mut to_add = Vec::new();
-        let mut to_complete = Vec::new();
-        if let Some(current_state) = parse_state.get_mut(current_position) {
-            while let Some(item) = current_state.next() {
-                match item.parse(grammar, input[current_position]) {
-                    ParseResult::Predict(rules) => current_state.add(
-                        Item::from_rules(
-                            rules,
-                            State {
-                                start: current_position,
-                                progress: 0
-                            }
-                        )
-                    ),
-                    ParseResult::Scan(item) => match item {
-                        Some(item) => to_add.push(item),
-                        None => ()
-                    },
-                    ParseResult::Complete(rule) => to_complete.push(rule)
-                }
-            }
 
-            for (rule, start) in to_complete {
-                to_add.extend(
-                    parse_state[start].items().iter()
-                        .filter_map(|item| item.next_name().and_then(|name| {
-                            if name == rule {
-                                Some(item.advanced())
-                            } else {
-                                None
-                            }
-                        }))
-                )
-            }
-
-            if !to_add.is_empty() {
-                parse_state.push(StateSet::new(to_add));
-            }
-        } else {
+        if current_position >= parse_state.len() {
             println!("Input: {}", input.iter().collect::<String>());
             for (i, state) in parse_state.iter().enumerate() {
                 println!("State Set: {}", i);
@@ -65,6 +28,34 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
                 println!();
             }
             todo!("Ran out of state before running out of input, this should be an error");
+        }
+
+        let (prev_state, current_state) =
+            fragment(&mut parse_state, current_position);
+
+        let mut to_add = Vec::new();
+
+        while let Some(item) = current_state.next() {
+            match item.parse(grammar, prev_state, input[current_position]) {
+                ParseResult::Predict(rules) => current_state.add(
+                    Item::from_rules(
+                        rules,
+                        State {
+                            start: current_position,
+                            progress: 0
+                        }
+                    )
+                ),
+                ParseResult::Scan(item) => match item {
+                    Some(item) => to_add.push(item),
+                    None => ()
+                },
+                ParseResult::Complete(items) => current_state.add(items)
+            }
+        }
+
+        if !to_add.is_empty() {
+            parse_state.push(StateSet::new(to_add));
         }
     }
     println!("Input: {}", input.iter().collect::<String>());
@@ -75,6 +66,17 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
     }
     todo!("Did the parse work?")
 }
+
+fn fragment<'a, 'b>(
+    state: &'a mut [StateSet<'b>],
+    current_position: usize
+) -> (&'a [StateSet<'b>], &'a mut StateSet<'b>) {
+    let (prev_state, current_and_next_state) =
+        state.split_at_mut(current_position);
+    (prev_state, &mut current_and_next_state[0])
+}
+
+
 
 syntax_abuse::tests! {
 
@@ -102,7 +104,6 @@ syntax_abuse::tests! {
 
     tc! {
         success,
-//        "1+(2*3-4)",
         "1+2+3-4+5*(6+7)/106",
         true
     }

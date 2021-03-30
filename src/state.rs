@@ -61,13 +61,14 @@ pub struct State {
 pub enum ParseResult<'a> {
     Predict(Vec<&'a Rule>),
     Scan(Option<Item<'a>>),
-    Complete((&'a str, usize))
+    Complete(Vec<Item<'a>>)
 }
 
 impl<'a> Item<'a> {
     pub fn parse(
         &self,
         grammar: &'a Grammar,
+        prev_state: &[StateSet<'a>],
         next_char: char
     ) -> ParseResult<'a> {
         if let Some(matcher) = self.rule.get(self.state.progress) {
@@ -93,7 +94,16 @@ impl<'a> Item<'a> {
                     )
             }
         } else {
-            ParseResult::Complete((self.rule.name(), self.state.start))
+            let completed = self.rule.name();
+            let root_state = &prev_state[self.state.start];
+            ParseResult::Complete(
+                root_state.items().iter()
+                    .filter_map(|item| {
+                        item.next_name()
+                            .filter(|name| *name == completed)
+                            .map(|_| item.advanced())
+                    }).collect::<Vec<Item>>()
+            )
         }
     }
 
