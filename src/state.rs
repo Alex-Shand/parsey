@@ -69,35 +69,23 @@ impl<'a> Item<'a> {
         &self,
         grammar: &'a Grammar,
         prev_state: &[StateSet<'a>],
-        next_char: char
+        next_char: Option<&char>
     ) -> ParseResult<'a> {
         if let Some(matcher) = self.rule.get(self.state.progress) {
             match matcher {
                 Symbol::Rule(name) =>
                     ParseResult::Predict(grammar.get_rules_by_name(name)),
-                Symbol::Literal(c) => {
-                    ParseResult::Scan(
-                        if *c == next_char {
-                            todo!("Scan Literal")
-                        } else {
-                            None
-                        }
-                    )
-                }
+                Symbol::Literal(c) =>
+                    ParseResult::Scan(self.scan(next_char, |next| next == c)),
                 Symbol::OneOf(cs) =>
                     ParseResult::Scan(
-                        if cs.contains(&next_char) {
-                            Some(self.advanced())
-                        } else {
-                            None
-                        }
+                        self.scan(next_char, |next| cs.contains(next))
                     )
             }
         } else {
             let completed = self.rule.name();
-            let root_state = &prev_state[self.state.start];
             ParseResult::Complete(
-                root_state.items().iter()
+                prev_state[self.state.start].items().iter()
                     .filter_map(|item| {
                         item.next_name()
                             .filter(|name| *name == completed)
@@ -107,6 +95,10 @@ impl<'a> Item<'a> {
         }
     }
 
+    fn scan(&self, expected: Option<&char>, pred: impl FnOnce(&char) -> bool) -> Option<Self> {
+        expected.copied().filter(pred).map(|_| self.advanced())
+    }
+    
     pub fn next_name(&self) -> Option<&str> {
         if let Some(symbol) = self.rule.get(self.state.progress) {
             match symbol {

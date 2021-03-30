@@ -18,7 +18,7 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
         )
     ];
 
-    for current_position in 0..input.len() {
+    for current_position in 0..input.len()+1 {
 
         if current_position >= parse_state.len() {
             println!("Input: {}", input.iter().collect::<String>());
@@ -36,7 +36,7 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
         let mut to_add = Vec::new();
 
         while let Some(item) = current_state.next() {
-            match item.parse(grammar, prev_state, input[current_position]) {
+            match item.parse(grammar, prev_state, input.get(current_position)) {
                 ParseResult::Predict(rules) => current_state.add(
                     Item::from_rules(
                         rules,
@@ -58,6 +58,7 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
             parse_state.push(StateSet::new(to_add));
         }
     }
+    
     println!("Input: {}", input.iter().collect::<String>());
     for (i, state) in parse_state.iter().enumerate() {
         println!("State Set: {}", i);
