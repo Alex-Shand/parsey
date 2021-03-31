@@ -86,31 +86,10 @@ macro_rules! grammar_aux {
 /// [Grammar::new] and [Rule::new]
 ///
 /// # Syntax
-/// ```
+/// ```ignore
 /// grammar! {
 ///     <Rule Name> -> <Rule Body>;
 ///     ...
-/// }
-/// ```
-/// Within the rule body an unquoted rule name becomes [Symbol::Rule]
-/// ```
-/// grammar! {
-///     // Rule::new("Rule", vec![Symbol::Rule("AnotherRule")])
-///     Rule -> AnotherRule;
-/// }
-/// ```
-/// A bare string becomes a sequence of [Symbol::Literal] (one for each character)
-/// ```
-/// grammar! {
-///     // Rule::new("Rule", vec![Symbol::Literal('1'), Symbol::Literal('2')])
-///     Rule -> "12";
-/// }
-/// ```
-/// A string wrapped in `[]` is [Symbol::OneOf]
-/// ```
-/// grammar! {
-///     // Rule::new("Rule", vec![Symbol::OneOf(vec!['1','2'])])
-///     Rule -> ["12"];
 /// }
 /// ```
 ///
@@ -118,17 +97,54 @@ macro_rules! grammar_aux {
 /// See [Grammar::new] and [Rule::new]
 ///
 /// # Examples
+/// Within the rule body an unquoted rule name becomes [Symbol::Rule]
 /// ```
-/// grammar! {
-///     Sum -> Sum ["+-"] Product;
-///     Sum -> Product;
-///     Product -> Product ["*/"] Factor;
-///     Product -> Factor;
-///     Factor -> "(" Sum ")";
-///     Factor -> Number;
-///     Number -> ["0123456789"] Number;
-///     Number -> ["0123456789"];
-/// }
+/// # use parsey::grammar;
+/// # use parsey::grammar::{ Grammar, Rule, Symbol };
+/// assert_eq!(
+///     grammar! {
+///         Rule -> AnotherRule;
+///     },
+///     Grammar::new(vec![
+///         Rule::new(
+///             String::from("Rule"),
+///             vec![Symbol::Rule(String::from("AnotherRule"))]
+///         )
+///     ])
+/// )
+/// ```
+/// A bare string becomes a sequence of [Symbol::Literal] (one for each character)
+/// ```
+/// # use parsey::grammar;
+/// # use parsey::grammar::{ Grammar, Rule, Symbol };
+/// assert_eq!(
+///     grammar! {
+///         Rule -> "12";
+///     },
+///     Grammar::new(vec![
+///         Rule::new(
+///             String::from("Rule"),
+///             vec![Symbol::Literal('1'), Symbol::Literal('2')]
+///         )
+///     ])
+/// )
+/// ```
+/// A string wrapped in `[]` is [Symbol::OneOf]
+/// ```
+/// # use std::collections::HashSet;
+/// # use parsey::grammar;
+/// # use parsey::grammar::{ Grammar, Rule, Symbol };
+/// assert_eq!(
+///     grammar! {
+///         Rule -> ["12"];
+///     },
+///     Grammar::new(vec![
+///         Rule::new(
+///             String::from("Rule"),
+///             vec![Symbol::OneOf(vec!['1','2'].into_iter().collect::<HashSet<_>>())]
+///         )
+///     ])
+/// )
 /// ```
 ///
 /// [Grammar]: super::Grammar
