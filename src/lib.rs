@@ -9,10 +9,12 @@ mod state;
 /// `grammar`, false otherwise.
 pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
     let input = input.as_ref().chars().collect::<Vec<_>>();
+    let start_symbol = grammar.start_symbol();
+
     let mut parse_state = vec![
         StateSet::new(
             Item::from_rules(
-                grammar.get_rules_by_name(grammar.start_symbol()),
+                grammar.get_rules_by_name(start_symbol),
                 State { start: 0, progress: 0 }
             )
         )
@@ -21,13 +23,7 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
     for current_position in 0..input.len()+1 {
 
         if current_position >= parse_state.len() {
-            println!("Input: {}", input.iter().collect::<String>());
-            for (i, state) in parse_state.iter().enumerate() {
-                println!("State Set: {}", i);
-                println!("{}", state);
-                println!();
-            }
-            todo!("Ran out of state before running out of input, this should be an error");
+            return false;
         }
 
         let (prev_state, current_state) =
@@ -58,14 +54,17 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
             parse_state.push(StateSet::new(to_add));
         }
     }
-    
-    println!("Input: {}", input.iter().collect::<String>());
-    for (i, state) in parse_state.iter().enumerate() {
-        println!("State Set: {}", i);
-        println!("{}", state);
-        println!();
+
+    match parse_state.last() {
+        None => false,
+        Some(end_state) =>
+            end_state.items().iter()
+            .filter(|item| {
+                item.rule_name() == start_symbol &&
+                    item.starts_at() == 0 &&
+                    item.is_complete()
+            }).count() != 0
     }
-    todo!("Did the parse work?")
 }
 
 fn fragment<'a, 'b>(

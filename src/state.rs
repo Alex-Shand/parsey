@@ -98,6 +98,18 @@ impl<'a> Item<'a> {
     fn scan(&self, expected: Option<&char>, pred: impl FnOnce(&char) -> bool) -> Option<Self> {
         expected.copied().filter(pred).map(|_| self.advanced())
     }
+
+    pub fn rule_name(&self) -> &str {
+        &self.rule.name()
+    }
+
+    pub fn is_complete(&self) -> bool {
+        self.state.progress >= self.rule.body().len()
+    }
+
+    pub fn starts_at(&self) -> usize {
+        self.state.start
+    }
     
     pub fn next_name(&self) -> Option<&str> {
         if let Some(symbol) = self.rule.get(self.state.progress) {
