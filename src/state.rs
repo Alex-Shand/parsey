@@ -58,10 +58,9 @@ pub struct State {
 }
 
 #[derive(Debug)]
-pub enum ParseResult<'a> {
-    Predict(Vec<&'a Rule>),
-    Scan(Option<Item<'a>>),
-    Complete(Vec<Item<'a>>)
+pub enum AddTo<'a> {
+    CurrentState(Vec<Item<'a>>),
+    NextState(Option<Item<'a>>)
 }
 
 impl<'a> Item<'a> {
@@ -69,22 +68,34 @@ impl<'a> Item<'a> {
         &self,
         grammar: &'a Grammar,
         prev_state: &[StateSet<'a>],
-        next_char: Option<&char>
-    ) -> ParseResult<'a> {
+        input: &[char],
+        current_position: usize
+    ) -> AddTo<'a> {
         if let Some(matcher) = self.rule.get(self.state.progress) {
             match matcher {
                 Symbol::Rule(name) =>
-                    ParseResult::Predict(grammar.get_rules_by_name(name)),
+                    AddTo::CurrentState(
+                        Item::from_rules(
+                            grammar.get_rules_by_name(name),
+                            current_position
+                        )
+                    ),
                 Symbol::Literal(c) =>
-                    ParseResult::Scan(self.scan(next_char, |next| next == c)),
+                    AddTo::NextState(
+                        self.scan(
+                            input.get(current_position), |next| next == c)
+                    ),
                 Symbol::OneOf(cs) =>
-                    ParseResult::Scan(
-                        self.scan(next_char, |next| cs.contains(next))
+                    AddTo::NextState(
+                        self.scan(
+                            input.get(current_position),
+                            |next| cs.contains(next)
+                        )
                     )
             }
         } else {
             let completed = self.rule.name();
-            ParseResult::Complete(
+            AddTo::CurrentState(
                 prev_state[self.state.start].items().iter()
                     .filter_map(|item| {
                         item.next_name()
@@ -95,7 +106,11 @@ impl<'a> Item<'a> {
         }
     }
 
-    fn scan(&self, expected: Option<&char>, pred: impl FnOnce(&char) -> bool) -> Option<Self> {
+    fn scan(
+        &self,
+        expected: Option<&char>,
+        pred: impl FnOnce(&char) -> bool
+    ) -> Option<Self> {
         expected.copied().filter(pred).map(|_| self.advanced())
     }
 
@@ -122,8 +137,8 @@ impl<'a> Item<'a> {
         }
     }
 
-    pub fn from_rules(rules: Vec<&'a Rule>, state: State) -> Vec<Self> {
-        rules.into_iter().map(|rule| Item { rule, state }).collect::<Vec<_>>()
+    pub fn from_rules(rules: Vec<&'a Rule>, start: usize) -> Vec<Self> {
+        rules.into_iter().map(|rule| Item { rule, state: State { start, progress: 0 }}).collect::<Vec<_>>()
     }
 
     pub fn advanced(&self) -> Self {

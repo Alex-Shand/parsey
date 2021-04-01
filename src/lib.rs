@@ -1,5 +1,5 @@
 use grammar::Grammar;
-use state::{ StateSet, Item, State, ParseResult };
+use state::{ StateSet, Item, AddTo };
 
 pub mod grammar;
 
@@ -11,72 +11,79 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
     let input = input.as_ref().chars().collect::<Vec<_>>();
     let start_symbol = grammar.start_symbol();
 
+    // Initial state set is seeded with all of the rules that can produce the
+    // start symbol
     let mut parse_state = vec![
         StateSet::new(
-            Item::from_rules(
-                grammar.get_rules_by_name(start_symbol),
-                State { start: 0, progress: 0 }
-            )
+            Item::from_rules(grammar.get_rules_by_name(start_symbol), 0)
         )
     ];
 
+    // len + 1 because completions still need to occur after the last character
+    // is consumed, predictions can also safely occur and are useless. Any
+    // attempt to scan will fail that thread of the parse.
     for current_position in 0..input.len()+1 {
 
         if current_position >= parse_state.len() {
+            // Ran out of state before running out of input, we didn't manage to
+            // parse the whole string
             return false;
         }
 
-        let (prev_state, current_state) =
-            fragment(&mut parse_state, current_position);
+        // The algorithm requires simultaneous write access to the last state
+        // set in parse_state and read access to the previous state sets. Won't
+        // panic because parse_state has at least one state set by construction.
+        let (current_state, prev_state) = parse_state.split_last_mut().unwrap();
 
         let mut to_add = Vec::new();
 
         while let Some(item) = current_state.next() {
-            match item.parse(grammar, prev_state, input.get(current_position)) {
-                ParseResult::Predict(rules) => current_state.add(
-                    Item::from_rules(
-                        rules,
-                        State {
-                            start: current_position,
-                            progress: 0
-                        }
-                    )
-                ),
-                ParseResult::Scan(item) => match item {
+            // current_state can't be modified directly because of borrowing
+            // rules so instead it returns instructions to its caller.
+            // current_state can be modified once item goes out of scope (in the
+            // match arms).
+            match item.parse(grammar, prev_state, &input, current_position) {
+                // Prediction or Completion require adding items to the current
+                // state set (might be 0, 1 or many items).
+                AddTo::CurrentState(items) => current_state.add(items),
+                // Scan might require adding an item to the next state set (only
+                // if it succeeds). These are batched up and done all at once
+                // just before using the new state set, this avoids having to
+                // work out if the next state set already exists during multiple
+                // scans. Also StateSet::new doesn't check membership which is
+                // safe for items produced from scans as each (already unique)
+                // item in the current state set can only produce 0 or 1 item in
+                // the next via scanning.
+                AddTo::NextState(item) => match item {
                     Some(item) => to_add.push(item),
                     None => ()
-                },
-                ParseResult::Complete(items) => current_state.add(items)
+                }
             }
         }
 
+        // Create the state set for the next iteration. If nothing is available
+        // to be added the parse has failed and we'll land in the if statement
+        // at the top of the loop next time around.
         if !to_add.is_empty() {
             parse_state.push(StateSet::new(to_add));
         }
     }
 
-    match parse_state.last() {
-        None => false,
-        Some(end_state) =>
-            end_state.items().iter()
-            .filter(|item| {
-                item.rule_name() == start_symbol &&
-                    item.starts_at() == 0 &&
-                    item.is_complete()
-            }).count() != 0
-    }
+    // As above this won't panic because parse_state.len() >= 1 by construction.
+    // The parse succeeded if there is at least one item in the last state set
+    // that ...
+    parse_state.last().unwrap().items().iter()
+        .filter(|item| {
+            // ... produces the start symbol ...
+            item.rule_name() == start_symbol &&
+            // ... starts at the beginning of the string (so spans the whole
+            // string as we would have failed above if we failed to produce new
+            // state with input left over) ...
+                item.starts_at() == 0 &&
+            // ... and has completed.
+                item.is_complete()
+        }).count() != 0
 }
-
-fn fragment<'a, 'b>(
-    state: &'a mut [StateSet<'b>],
-    current_position: usize
-) -> (&'a [StateSet<'b>], &'a mut StateSet<'b>) {
-    let (prev_state, current_and_next_state) =
-        state.split_at_mut(current_position);
-    (prev_state, &mut current_and_next_state[0])
-}
-
-
 
 syntax_abuse::tests! {
 
