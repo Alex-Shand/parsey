@@ -1,5 +1,5 @@
 use grammar::Grammar;
-use state::{ StateSet, Item, AddTo };
+use state::{ StateSet, Item };
 
 pub mod grammar;
 
@@ -22,7 +22,7 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
     // len + 1 because completions still need to occur after the last character
     // is consumed, predictions can also safely occur and are useless. Any
     // attempt to scan will fail that thread of the parse.
-    for current_position in 0..input.len()+1 {
+    for current_position in 0..input.len() + 1 {
 
         if current_position >= parse_state.len() {
             // Ran out of state before running out of input, we didn't manage to
@@ -37,28 +37,31 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
 
         let mut to_add = Vec::new();
 
-        while let Some(item) = current_state.next() {
-            // current_state can't be modified directly because of borrowing
-            // rules so instead it returns instructions to its caller.
-            // current_state can be modified once item goes out of scope (in the
-            // match arms).
-            match item.parse(grammar, prev_state, &input, current_position) {
-                // Prediction or Completion require adding items to the current
-                // state set (might be 0, 1 or many items).
-                AddTo::CurrentState(items) => current_state.add(items),
-                // Scan might require adding an item to the next state set (only
-                // if it succeeds). These are batched up and done all at once
-                // just before using the new state set, this avoids having to
-                // work out if the next state set already exists during multiple
-                // scans. Also StateSet::new doesn't check membership which is
-                // safe for items produced from scans as each (already unique)
-                // item in the current state set can only produce 0 or 1 item in
-                // the next via scanning.
-                AddTo::NextState(item) => match item {
-                    Some(item) => to_add.push(item),
-                    None => ()
-                }
-            }
+        while let Some(&item) = current_state.next() {
+            // Predictions and Completions can add new items directly to the
+            // current state set. Scans (if successful) need to add items to the
+            // next state set which doesn't exist yet. We batch those up and
+            // create the next state set after fully processing the current
+            // one. This saves additional complexity to work out whether the new
+            // state set already exists (because of a previous successful
+            // scan). Note: StateSet::new assumes that all of the items in its
+            // to_add set are unique, this holds for items generated from scans
+            // because each (already unique) item in the current state set can
+            // only produce 0 or 1 item in the next, which its itself with the
+            // progress marker incremented by 1 (and the symbol to the left of
+            // the progress marker will always be a terminal). Predictions can
+            // only generate items with progress at 0 and completions generate
+            // items where the symbol to the left of the progress marker is a
+            // non-terminal.
+            if let Some(item) = item.parse(
+                grammar,
+                current_state,
+                prev_state,
+                &input,
+                current_position
+            ) {
+                to_add.push(item)
+            };
         }
 
         // Create the state set for the next iteration. If nothing is available

@@ -57,52 +57,43 @@ pub struct State {
     pub progress: usize
 }
 
-#[derive(Debug)]
-pub enum AddTo<'a> {
-    CurrentState(Vec<Item<'a>>),
-    NextState(Option<Item<'a>>)
-}
-
 impl<'a> Item<'a> {
     pub fn parse(
         &self,
         grammar: &'a Grammar,
+        current_state: &mut StateSet<'a>,
         prev_state: &[StateSet<'a>],
         input: &[char],
         current_position: usize
-    ) -> AddTo<'a> {
+    ) -> Option<Item<'a>> {
         if let Some(matcher) = self.rule.get(self.state.progress) {
             match matcher {
-                Symbol::Rule(name) =>
-                    AddTo::CurrentState(
+                Symbol::Rule(name) => {
+                    current_state.add(
                         Item::from_rules(
                             grammar.get_rules_by_name(name),
                             current_position
                         )
-                    ),
+                    );
+                    None
+                }
                 Symbol::Literal(c) =>
-                    AddTo::NextState(
-                        self.scan(
-                            input.get(current_position), |next| next == c)
-                    ),
-                Symbol::OneOf(cs) =>
-                    AddTo::NextState(
-                        self.scan(
-                            input.get(current_position),
-                            |next| cs.contains(next)
-                        )
-                    )
+                    self.scan(input.get(current_position), |next| next == c),
+                Symbol::OneOf(cs) => self.scan(
+                    input.get(current_position), |next| cs.contains(next)
+                )
             }
         } else {
             let completed = self.rule.name();
-            AddTo::CurrentState(
+            current_state.add(
                 prev_state[self.state.start].items().iter()
                     .filter_map(|item| {
                         item.next_name()
                             .filter(|name| *name == completed)
                             .map(|_| item.advanced())
                     }).collect::<Vec<Item>>()
-            )
+            );
+            None
         }
     }
 
