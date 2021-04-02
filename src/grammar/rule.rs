@@ -25,8 +25,8 @@ impl Rule {
         Rule { name, body }
     }
 
-    syntax::get! { pub name : &str }
-    syntax::get! { pub body : &[Symbol] }
+    syntax::get! { pub name : str }
+    syntax::get! { pub body : [Symbol] }
 
     pub fn get(&self, index: usize) -> Option<&Symbol> {
         self.body.get(index)

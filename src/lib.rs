@@ -82,7 +82,7 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
             // ... starts at the beginning of the string (so spans the whole
             // string as we would have failed above if we failed to produce new
             // state with input left over) ...
-                item.starts_at() == 0 &&
+                item.start() == &0 &&
             // ... and has completed.
                 item.is_complete()
         }).count() != 0
