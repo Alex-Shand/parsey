@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::fmt;
 
 /// Valid symbols for a [Rule](super::Rule) body
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub enum Symbol {
     /// Succeeds if the [Rule](super::Rule) with the specified name succeeds
     Rule(String),
@@ -25,6 +25,12 @@ impl fmt::Display for Symbol {
                 write!(f, "[{}]", chars.into_iter().collect::<String>())
             }
         }
+    }
+}
+
+impl fmt::Debug for Symbol {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
     }
 }
 

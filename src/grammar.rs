@@ -9,7 +9,7 @@ mod rule;
 mod symbol;
 
 /// Grammar suitable for Earley parsing
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub struct Grammar(Vec<Rule>);
 
 impl Grammar {
@@ -44,6 +44,11 @@ impl fmt::Display for Grammar {
             "{}",
             self.0.iter().map(|r| r.to_string()).collect::<Vec<_>>().join("\n")
         )
+    }
+}
+impl fmt::Debug for Grammar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
     }
 }
 

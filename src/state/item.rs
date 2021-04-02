@@ -7,7 +7,7 @@ use super::{
     super::grammar::{ Grammar, Rule, Symbol }
 };
     
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(PartialEq, Copy, Clone)]
 pub struct Item<'a> {
     rule: &'a Rule,
     start: usize,
@@ -139,5 +139,11 @@ impl fmt::Display for Item<'_> {
             .collect::<Vec<_>>().join(" ");
 
         write!(f, "{} -> {} ({})", self.rule.name(), body, self.start)
+    }
+}
+
+impl fmt::Debug for Item<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
     }
 }

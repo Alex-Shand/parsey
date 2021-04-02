@@ -5,7 +5,7 @@ use super::symbol::Symbol;
 use syntax_abuse as syntax;
 
 /// [Grammar](super::Grammar) rule
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub struct Rule {
     name: String,
     body: Vec<Symbol>
@@ -43,6 +43,12 @@ impl fmt::Display for Rule {
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>().join(" ")
         )
+    }
+}
+
+impl fmt::Debug for Rule {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
     }
 }
 

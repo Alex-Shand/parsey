@@ -47,7 +47,7 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
             // scan). Note: StateSet::new assumes that all of the items in its
             // to_add set are unique, this holds for items generated from scans
             // because each (already unique) item in the current state set can
-            // only produce 0 or 1 item in the next, which its itself with the
+            // only produce 0 or 1 item in the next, which it itself with the
             // progress marker incremented by 1 (and the symbol to the left of
             // the progress marker will always be a terminal). Predictions can
             // only generate items with progress at 0 and completions generate
@@ -65,8 +65,9 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
         }
 
         // Create the state set for the next iteration. If nothing is available
-        // to be added the parse has failed and we'll land in the if statement
-        // at the top of the loop next time around.
+        // we're either on the last state set (current_position == input.len())
+        // and the loop is about to terminate or the parse has failed and we'll
+        // land in the if statement at the top of the loop next time around.
         if !to_add.is_empty() {
             parse_state.push(StateSet::new(to_add));
         }

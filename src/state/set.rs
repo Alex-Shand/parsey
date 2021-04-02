@@ -5,7 +5,6 @@ use syntax_abuse as syntax;
 use super::item::Item;
     
 /// The set of Earley items produced from one step of the algorithm
-#[derive(Debug)]
 pub struct StateSet<'a> {
     items: Vec<Item<'a>>,
     next: usize
@@ -54,5 +53,11 @@ impl fmt::Display for StateSet<'_> {
                 .collect::<Vec<_>>()
                 .join("\n")
         )
+    }
+}
+
+impl fmt::Debug for StateSet<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
     }
 }
