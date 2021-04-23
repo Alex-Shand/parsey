@@ -37,7 +37,7 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
 
         let mut to_add = Vec::new();
 
-        while let Some(&item) = current_state.next() {
+        while let Some(item) = current_state.next() {
             // Predictions and Completions can add new items directly to the
             // current state set. Scans (if successful) need to add items to the
             // next state set which doesn't exist yet. We batch those up and
@@ -128,6 +128,12 @@ syntax_abuse::tests! {
     tc! {
         invalid_character,
         "1%2",
+        false
+    }
+
+    tc! {
+        valid_character_in_the_wrong_place,
+        "+1",
         false
     }
 }
