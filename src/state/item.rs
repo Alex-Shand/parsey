@@ -67,11 +67,13 @@ impl<'a> Item<'a> {
                 // terminal), this will be added to the next state set by
                 // the caller when it is created.
                 Symbol::Literal(c) => self.scan(
-                    input.get(current_position),
+                    input,
+                    current_position,
                     |next| next == c
                 ),
                 Symbol::OneOf(cs) => self.scan(
-                    input.get(current_position),
+                    input,
+                    current_position,
                     |next| cs.contains(next)
                 )
             }
@@ -93,17 +95,17 @@ impl<'a> Item<'a> {
         }
     }
 
-    /// Common Scan implementation. Unconditionally returns None if the
-    /// expected character is None (end of input condition), otherwise the
-    /// character is passed to pred. If pred succeeds the item is returned
-    /// advanced by one place (see the Scan branch of Item::parse), if it
-    /// fails None is returned.
+    /// Common Scan implementation. Unconditionally returns None if `pos` is
+    /// past the end of `input`, otherwise the character is passed to pred. If
+    /// pred succeeds the item is returned advanced by one place (see the Scan
+    /// branch of Item::parse), if it fails None is returned.
     fn scan(
         &self,
-        expected: Option<&char>,
+        input: &[char],
+        pos: usize,
         pred: impl FnOnce(&char) -> bool
     ) -> Option<Self> {
-        expected.copied().filter(pred).map(|_| self.advanced())
+        input.get(pos).copied().filter(pred).map(|_| self.advanced())
     }
 
     /// If the next symbol to be processed is a rule this returns the name of
@@ -145,5 +147,161 @@ impl fmt::Display for Item<'_> {
 impl fmt::Debug for Item<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self)
+    }
+}
+
+syntax::tests! {
+    use crate::rule;
+    use crate::grammar::Rule;
+
+    testdata! {
+        RULE  : Rule = rule! { Rule  -> "Rule"    };
+        RULE2 : Rule = rule! { Rule2 -> "Rule2"   };
+        RULE3 : Rule = rule! { Rule3 -> "Rule3"   };
+        RULE4 : Rule = rule! { Rule4 -> ["Rule4"] };
+        RULE5 : Rule = rule! { Rule5 -> Rule      };
+    }
+
+    testcase! {
+        from_rules,
+        Item::from_rules(vec![&RULE, &RULE2, &RULE3], 1),
+        vec![
+            Item { rule: &RULE,  start: 1, progress: 0 },
+            Item { rule: &RULE2, start: 1, progress: 0 },
+            Item { rule: &RULE3, start: 1, progress: 0 }
+        ]
+    }
+
+    testcase! {
+        rule_name,
+        Item { rule: &RULE, start: 0, progress: 0 }.rule_name(),
+        "Rule"
+    }
+
+    testcase! {
+        is_complete_completed,
+        Item { rule: &RULE, start: 0, progress: 4 }.is_complete(),
+        true
+    }
+
+    testcase! {
+        is_complete_overshoot,
+        Item { rule: &RULE, start: 0, progress: 300 }.is_complete(),
+        true
+    }
+
+    testcase! {
+        is_complete_incomplete,
+        Item { rule: &RULE, start: 0, progress: 0 }.is_complete(),
+        false
+    }
+
+    testcase! {
+        next_name_literal,
+        Item { rule: &RULE, start: 0, progress: 0 }.next_name(),
+        None
+    }
+
+    testcase! {
+        next_name_oneof,
+        Item { rule: &RULE4, start: 0, progress: 0 }.next_name(),
+        None
+    }
+
+    testcase! {
+        next_name_rule,
+        Item { rule: &RULE5, start: 0, progress: 0 }.next_name(),
+        Some("Rule")
+    }
+
+    testcase! {
+        advanced,
+        Item { rule: &RULE, start: 0, progress: 0 }.advanced(),
+        Item { rule: &RULE, start: 0, progress: 1 }
+    }
+
+    #[test]
+    fn parse_rule() {
+        let rule = rule! { Rule -> Rule2 };
+        let rule2 = rule! { Rule2 -> "Rule2" };
+        let grammar = Grammar::new(vec![rule.clone(), rule2.clone()]);
+        let mut state = StateSet::new(vec![]);
+        let prev = Vec::new();
+        let input = Vec::new();
+        assert_eq!(
+            Item { rule: &rule, start: 0, progress: 0 }.parse(
+                &grammar,
+                &mut state,
+                &prev,
+                &input,
+                0
+            ),
+            None
+        );
+        assert_eq!(state.items(), Item::from_rules(vec![&rule2], 0))
+    }
+
+    #[test]
+    fn parse_literal_success() {
+        let rule = rule! { Rule -> "x" };
+        let grammar = Grammar::new(vec![rule.clone()]);
+        let mut state = StateSet::new(vec![]);
+        let prev = Vec::new();
+        let input = vec!['x'];
+        assert_eq!(
+            Item { rule: &rule, start: 0, progress: 0 }.parse(
+                &grammar,
+                &mut state,
+                &prev,
+                &input,
+                0
+            ),
+            Some(Item { rule: &rule, start: 0, progress: 1 })
+        );
+        assert_eq!(state.items(), vec![])
+    }
+
+    #[test]
+    fn parse_literal_failure() {
+        let rule = rule! { Rule -> "y" };
+        let grammar = Grammar::new(vec![rule.clone()]);
+        let mut state = StateSet::new(vec![]);
+        let prev = Vec::new();
+        let input = vec!['x'];
+        assert_eq!(
+            Item { rule: &rule, start: 0, progress: 0 }.parse(
+                &grammar,
+                &mut state,
+                &prev,
+                &input,
+                0
+            ),
+            None
+        );
+        assert_eq!(state.items(), vec![])
+    }
+
+    #[test]
+    fn parse_completion() {
+        let rule = rule! { Rule -> Rule2 };
+        let rule2 = rule! { Rule2 -> "Rule2" };
+        let grammar = Grammar::new(vec![rule.clone(), rule2.clone()]);
+        let mut state = StateSet::new(vec![]);
+        let prev = vec![StateSet::new(Item::from_rules(vec![&rule], 0))];
+        let input = Vec::new();
+        assert_eq!(
+            Item { rule: &rule2, start: 0, progress: 5 }.parse(
+                &grammar,
+                &mut state,
+                &prev,
+                &input,
+                0
+            ),
+            None
+        );
+        assert_eq!(
+            state.items(),
+            vec![Item { rule: &rule, start: 0, progress: 1 }]
+        )
     }
 }

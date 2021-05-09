@@ -5,7 +5,7 @@ use super::symbol::Symbol;
 use syntax_abuse as syntax;
 
 /// [Grammar](super::Grammar) rule
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Rule {
     name: String,
     body: Vec<Symbol>

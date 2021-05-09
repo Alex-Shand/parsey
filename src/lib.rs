@@ -38,7 +38,7 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
         let mut to_add = Vec::new();
 
         while let Some(item) = current_state.next() {
-            // Predictions and Completions can add new items directly to the
+            // Predictions and completions can add new items directly to the
             // current state set. Scans (if successful) need to add items to the
             // next state set which doesn't exist yet. We batch those up and
             // create the next state set after fully processing the current
@@ -47,7 +47,7 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
             // scan). Note: StateSet::new assumes that all of the items in its
             // to_add set are unique, this holds for items generated from scans
             // because each (already unique) item in the current state set can
-            // only produce 0 or 1 item in the next, which it itself with the
+            // only produce 0 or 1 item in the next, which is itself with the
             // progress marker incremented by 1 (and the symbol to the left of
             // the progress marker will always be a terminal). Predictions can
             // only generate items with progress at 0 and completions generate
@@ -73,7 +73,9 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
         }
     }
 
-    // As above this won't panic because parse_state.len() >= 1 by construction.
+    // As above there is always at least 1 state set in parse_state (the initial
+    // one)
+
     // The parse succeeded if there is at least one item in the last state set
     // that ...
     parse_state.last().unwrap().items().iter()
