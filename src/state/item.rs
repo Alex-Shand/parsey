@@ -3,7 +3,7 @@ use std::fmt;
 use syntax_abuse as syntax;
 
 use super::{
-    set::StateSet,
+    stateset::StateSet,
     super::grammar::{ Grammar, Rule, Symbol }
 };
     
@@ -21,6 +21,11 @@ impl<'a> Item<'a> {
         rules.into_iter()
             .map(|rule| Item { rule, start, progress: 0 })
             .collect::<Vec<_>>()
+    }
+
+    #[cfg(test)]
+    pub fn from_parts(rule: &'a Rule, start: usize, progress: usize) -> Self {
+        Item { rule, start, progress }
     }
 
     syntax::get! { pub start : usize }

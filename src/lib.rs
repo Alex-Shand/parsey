@@ -5,12 +5,15 @@ pub mod grammar;
 
 mod state;
 
-/// Return `true` if the input string is in the language described by
-/// `grammar`, false otherwise.
-pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
-    let input = input.as_ref().chars().collect::<Vec<_>>();
-    let start_symbol = grammar.start_symbol();
+fn expand_input<S>(input: S) -> Vec<char> where S: AsRef<str> {
+    input.as_ref().chars().collect()
+}
 
+fn build_parse_state<'a>(
+    start_symbol: &'a str,
+    grammar: &'a Grammar,
+    input: &'a Vec<char>
+) -> Result<Vec<StateSet<'a>>, &'a [char]> {
     // Initial state set is seeded with all of the rules that can produce the
     // start symbol
     let mut parse_state = vec![
@@ -26,8 +29,10 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
 
         if current_position >= parse_state.len() {
             // Ran out of state before running out of input, we didn't manage to
-            // parse the whole string
-            return false;
+            // parse the whole string (use current_position - 1 because the
+            // error actually occurred in the previous iteration of the loop,
+            // safe because parse_state.len() is always >= 1)
+            return Err(&input[current_position-1..input.len()]);
         }
 
         // The algorithm requires simultaneous write access to the last state
@@ -73,69 +78,205 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
         }
     }
 
-    // As above there is always at least 1 state set in parse_state (the initial
-    // one)
+    Ok(parse_state)
+}
 
-    // The parse succeeded if there is at least one item in the last state set
-    // that ...
-    parse_state.last().unwrap().items().iter()
-        .filter(|item| {
-            // ... produces the start symbol ...
-            item.rule_name() == start_symbol &&
-            // ... starts at the beginning of the string (so spans the whole
-            // string as we would have failed above if we failed to produce new
-            // state with input left over) ...
-                item.start() == &0 &&
-            // ... and has completed.
-                item.is_complete()
-        }).count() != 0
+/// Return `true` if the input string is in the language described by
+/// `grammar`, false otherwise.
+pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
+    let input = expand_input(input);
+    let start_symbol = grammar.start_symbol();
+
+    // Build parse state will succeed if it can produce a state set for every
+    // character in the input. This doesn't necessarily mean the parse succeeded
+    if let Ok(parse_state) = build_parse_state(start_symbol, grammar, &input) {
+        // The parse succeeded if there is at least one item in the last state set
+        // that ...
+        parse_state.last().unwrap().items().iter()
+            .filter(|item| {
+                // ... produces the start symbol ...
+                item.rule_name() == start_symbol &&
+                // ... starts at the beginning of the string ...
+                    item.start() == &0 &&
+                // ... and has completed.
+                    item.is_complete()
+            }).count() != 0
+    } else {
+        return false;
+    }
 }
 
 syntax_abuse::tests! {
+    
+    testdata! {
+        ARITH : Grammar = grammar! {
+            Sum -> Sum ["+-"] Product;
+            Sum -> Product;
+            Product -> Product ["*/"] Factor;
+            Product -> Factor;
+            Factor -> "(" Sum ")";
+            Factor -> Number;
+            Number -> ["0123456789"] Number;
+            Number -> ["0123456789"];
+        };
+    }
 
-    macro_rules! tc {
-        ($name:ident, $input:expr, $expected:expr) => {
-            testcase! {
-                $name,
-                recognise(
-                    &grammar! {
-                        Sum -> Sum ["+-"] Product;
-                        Sum -> Product;
-                        Product -> Product ["*/"] Factor;
-                        Product -> Factor;
-                        Factor -> "(" Sum ")";
-                        Factor -> Number;
-                        Number -> ["0123456789"] Number;
-                        Number -> ["0123456789"];
-                    },
-                    $input
-                ),
-                $expected
+    tests! {
+        build_parse_state:
+
+        macro_rules! testcase {
+            ($name : ident, $grammar : expr, $input : expr, $expected : expr) => {
+                #[test]
+                fn $name() {
+                    let input = expand_input($input);
+                    assert_eq!(
+                        build_parse_state($grammar.start_symbol(), &$grammar, &input),
+                        $expected
+                    )
+                }
             }
         }
-    }
 
-    tc! {
-        success,
-        "1+2+3-4+5*(6+7)/106",
-        true
-    }
+        macro_rules! err {
+            ($string: expr) => {
+                Err(&$string.chars().collect::<Vec<_>>()[..])
+            }
+        }
 
-    tc! {
-        truncated_input,
-        "1+",
-        false
-    }
+        macro_rules! flatvec {
+            () => { vec![] };
+            ($($iters: expr),* $(,)?) => {
+                vec![$($iters),*].into_iter().flatten().collect::<Vec<_>>()
+            }
+        }
 
-    tc! {
-        invalid_character,
-        "1%2",
-        false
-    }
+        fn make_items<'a ,'b>(
+            grammar: &'a Grammar,
+            name: &'b str,
+            start: usize,
+            progress: usize
+        ) -> Vec<Item<'a>> {
+            grammar.get_rules_by_name(name).into_iter()
+                .map(move |rule| Item::from_parts(rule, start, progress))
+                .collect()
+        }
 
-    tc! {
-        valid_character_in_the_wrong_place,
-        "+1",
-        false
+        fn make_item(
+            grammar: &Grammar,
+            idx: usize,
+            start: usize,
+            progress: usize
+        ) -> Vec<Item<'_>> {
+            vec![Item::from_parts(grammar.index(idx), start, progress)]
+        }
+        
+        testcase! {
+            success,
+            ARITH,
+            "1+2",
+            Ok(vec![
+                StateSet::exhausted(flatvec![
+                    make_items(&ARITH, "Sum", 0, 0),
+                    make_items(&ARITH, "Product", 0, 0),
+                    make_items(&ARITH, "Factor", 0, 0),
+                    make_items(&ARITH, "Number", 0, 0)
+                ]),
+                StateSet::exhausted(flatvec![
+                    make_items(&ARITH, "Number", 0, 1),
+                    make_items(&ARITH, "Number", 1, 0),
+                    make_item(&ARITH, 5, 0, 1),
+                    make_item(&ARITH, 3, 0, 1),
+                    make_item(&ARITH, 1, 0, 1),
+                    make_item(&ARITH, 2, 0, 1),
+                    make_item(&ARITH, 0, 0, 1)
+                ]),
+                StateSet::exhausted(flatvec![
+                    make_item(&ARITH, 0, 0, 2),
+                    make_items(&ARITH, "Product", 2, 0),
+                    make_items(&ARITH, "Factor", 2, 0),
+                    make_items(&ARITH, "Number", 2, 0)
+                ]),
+                StateSet::exhausted(flatvec![
+                    make_items(&ARITH, "Number", 2, 1),
+                    make_items(&ARITH, "Number", 3, 0),
+                    make_item(&ARITH, 5, 2, 1),
+                    make_item(&ARITH, 3, 2, 1),
+                    make_item(&ARITH, 0, 0, 3),
+                    make_item(&ARITH, 2, 2, 1),
+                    make_item(&ARITH, 0, 0, 1),
+                ])
+            ])
+        }
+
+        testcase! {
+            truncated_input,
+            ARITH,
+            "1+",
+            Ok(vec![
+                StateSet::exhausted(flatvec![
+                    make_items(&ARITH, "Sum", 0, 0),
+                    make_items(&ARITH, "Product", 0, 0),
+                    make_items(&ARITH, "Factor", 0, 0),
+                    make_items(&ARITH, "Number", 0, 0)
+                ]),
+                StateSet::exhausted(flatvec![
+                    make_items(&ARITH, "Number", 0, 1),
+                    make_items(&ARITH, "Number", 1, 0),
+                    make_item(&ARITH, 5, 0, 1),
+                    make_item(&ARITH, 3, 0, 1),
+                    make_item(&ARITH, 1, 0, 1),
+                    make_item(&ARITH, 2, 0, 1),
+                    make_item(&ARITH, 0, 0, 1)
+                ]),
+                StateSet::exhausted(flatvec![
+                    make_item(&ARITH, 0, 0, 2),
+                    make_items(&ARITH, "Product", 2, 0),
+                    make_items(&ARITH, "Factor", 2, 0),
+                    make_items(&ARITH, "Number", 2, 0)
+                ])
+            ])
+        }
+
+        testcase! {
+            invalid_character,
+            ARITH,
+            "1%2",
+            err!("%2")
+        }
+
+        testcase! {
+            valid_character_in_the_wrong_place,
+            ARITH,
+            "+1",
+            err!("+1")
+        }
+    }
+    
+    tests! {
+        recogniser:
+
+        testcase! {
+            success,
+            recognise(&ARITH, "1+2+3-4+5*(6+7)/106"),
+            true
+        }
+
+        testcase! {
+            truncated_input,
+            recognise(&ARITH, "1+"),
+            false
+        }
+
+        testcase! {
+            invalid_character,
+            recognise(&ARITH, "1%2"),
+            false
+        }
+
+        testcase! {
+            valid_character_in_the_wrong_place,
+            recognise(&ARITH, "+1"),
+            false
+        }
     }
 }

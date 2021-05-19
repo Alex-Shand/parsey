@@ -5,7 +5,7 @@ use syntax_abuse as syntax;
 use super::item::Item;
     
 /// The set of Earley items produced from one step of the algorithm
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct StateSet<'a> {
     items: Vec<Item<'a>>,
     next: usize
@@ -19,6 +19,12 @@ impl<'a> StateSet<'a> {
     /// are duplicates.
     pub fn new(items: Vec<Item<'a>>) -> Self {
         StateSet { items, next: 0 }
+    }
+
+    #[cfg(test)]
+    pub fn exhausted(items: Vec<Item<'a>>) -> Self {
+        let next = items.len() + 1;
+        StateSet { items, next }
     }
 
     syntax::get! { pub items : [Item<'a>] }
@@ -54,12 +60,6 @@ impl fmt::Display for StateSet<'_> {
                 .collect::<Vec<_>>()
                 .join("\n")
         )
-    }
-}
-
-impl fmt::Debug for StateSet<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self)
     }
 }
 

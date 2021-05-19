@@ -1,6 +1,6 @@
-pub use set::StateSet;
+pub use stateset::StateSet;
 pub use item::Item;
 
-mod set;
+mod stateset;
 mod item;
 

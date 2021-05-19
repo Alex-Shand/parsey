@@ -23,10 +23,6 @@ impl Grammar {
         assert!(!rules.is_empty(), "A grammar must have at least one rule");
         Grammar(rules)
     }
-
-    pub fn recognise<S>(&self, input: S) -> bool where S: AsRef<str> {
-        super::recognise(&self, input)
-    }
     
     pub fn start_symbol(&self) -> &str {
         &self.0[0].name()
@@ -34,6 +30,11 @@ impl Grammar {
 
     pub fn get_rules_by_name(&self, name: &str) -> Vec<&Rule> {
         self.0.iter().filter(|rule| rule.name() == name).collect::<Vec<_>>()
+    }
+
+    #[cfg(test)]
+    pub fn index(&self, idx: usize) -> &Rule {
+        &self.0[idx]
     }
 }
 
