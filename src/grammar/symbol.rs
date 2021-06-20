@@ -11,7 +11,20 @@ pub enum Symbol {
     Literal(char),
     /// Succeeds if the next character in the input matches any of the contained
     /// characters
-    OneOf(HashSet<char>)
+    OneOf(HashSet<char>),
+}
+
+impl Symbol {
+    pub(crate) fn is_terminal(&self) -> bool {
+        self.rule_name().is_none()
+    }
+
+    pub(crate) fn rule_name(&self) -> Option<&str> {
+        match self {
+            Symbol::Rule(name) => Some(&name),
+            Symbol::Literal(_) | Symbol::OneOf(_) => None,
+        }
+    }
 }
 
 impl fmt::Display for Symbol {
@@ -20,7 +33,7 @@ impl fmt::Display for Symbol {
             Symbol::Rule(name) => write!(f, "{}", name),
             Symbol::Literal(text) => write!(f, "'{}'", text),
             Symbol::OneOf(chars) => {
-                let mut chars = chars.into_iter().collect::<Vec<_>>();
+                let mut chars = chars.iter().collect::<Vec<_>>();
                 chars.sort_unstable();
                 write!(f, "[{}]", chars.into_iter().collect::<String>())
             }

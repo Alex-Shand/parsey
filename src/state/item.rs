@@ -3,54 +3,64 @@ use std::fmt;
 use syntax_abuse as syntax;
 
 use super::{
+    super::grammar::{Grammar, Rule, Symbol},
     stateset::StateSet,
-    super::grammar::{ Grammar, Rule, Symbol }
 };
-    
+
 #[derive(PartialEq, Copy, Clone)]
-pub struct Item<'a> {
+pub(crate) struct Item<'a> {
     rule: &'a Rule,
     start: usize,
-    progress: usize
+    progress: usize,
 }
 
 impl<'a> Item<'a> {
     /// Construct a vector of items from a vector of rules, each item starts
     /// at the given start position and has its progress marker set to 0.
-    pub fn from_rules(rules: Vec<&'a Rule>, start: usize) -> Vec<Self> {
-        rules.into_iter()
-            .map(|rule| Item { rule, start, progress: 0 })
+    pub(crate) fn from_rules(rules: Vec<&'a Rule>, start: usize) -> Vec<Self> {
+        rules
+            .into_iter()
+            .map(|rule| Item {
+                rule,
+                start,
+                progress: 0,
+            })
             .collect::<Vec<_>>()
     }
 
     #[cfg(test)]
-    pub fn from_parts(rule: &'a Rule, start: usize, progress: usize) -> Self {
-        Item { rule, start, progress }
+    pub(crate) fn from_parts(rule: &'a Rule, start: usize, progress: usize) -> Self {
+        Item {
+            rule,
+            start,
+            progress,
+        }
     }
 
     syntax::get! { pub start : usize }
 
     /// The name of the rule this item wraps.
-    pub fn rule_name(&self) -> &str {
+    pub(crate) fn rule_name(&self) -> &str {
         &self.rule.name()
     }
 
     /// True if the item is complete
-    pub fn is_complete(&self) -> bool {
+    pub(crate) fn is_complete(&self) -> bool {
         self.progress >= self.rule.body().len()
     }
 
     /// Perform the relevant step from the earley algorithm for the current
-    /// item. Predictions and Completions mutate current_state directly,
+    /// item. Predictions and Completions mutate `current_state` directly,
     /// Scans return the rule to be added to the next set (if applicable)
     /// for the caller to make use of.
-    pub fn parse(
+    #[allow(clippy::option_if_let_else)]
+    pub(crate) fn parse(
         &self,
         grammar: &'a Grammar,
         current_state: &mut StateSet<'a>,
         prev_state: &[StateSet<'a>],
         input: &[char],
-        current_position: usize
+        current_position: usize,
     ) -> Option<Item<'a>> {
         if let Some(matcher) = self.rule.get(self.progress) {
             match matcher {
@@ -58,12 +68,10 @@ impl<'a> Item<'a> {
                     // Prediction: Add all rules that can produce the
                     // required non-terminal to the current state set,
                     // starting from the current position
-                    current_state.add(
-                        Item::from_rules(
-                            grammar.get_rules_by_name(name),
-                            current_position
-                        )
-                    );
+                    current_state.add(Item::from_rules(
+                        grammar.get_rules_by_name(name),
+                        current_position,
+                    ));
                     None
                 }
                 // Scan: If the current character matches the current
@@ -71,31 +79,39 @@ impl<'a> Item<'a> {
                 // the current item advanced by one place (over the
                 // terminal), this will be added to the next state set by
                 // the caller when it is created.
-                Symbol::Literal(c) => self.scan(
-                    input,
-                    current_position,
-                    |next| next == c
-                ),
-                Symbol::OneOf(cs) => self.scan(
-                    input,
-                    current_position,
-                    |next| cs.contains(next)
-                )
+                Symbol::Literal(c) => self.scan(input, current_position, |next| next == c),
+                Symbol::OneOf(cs) => self.scan(input, current_position, |next| cs.contains(next)),
             }
         } else {
             // Completion: Find all rules in the state set this item started
             // in that need the non-terminal produced by this rule to
             // complete and add them to this state set advanced by one place
             // (over the non-terminal)
+
+            // Find the state set the completed rule started in (will usually be
+            // a previous state set but completions caused by matching the empty
+            // string will start in the current state set)
+            let target_state_set: &StateSet<'_>;
+            if self.start == prev_state.len() {
+                target_state_set = current_state;
+            } else {
+                target_state_set = &prev_state[self.start];
+            }
+
+            // This bit has to be separate from the current_state.add() call
+            // because target_state_set could be an alias for current_state
             let completed = self.rule.name();
-            current_state.add(
-                prev_state[self.start].items().iter()
-                    .filter_map(|item| {
-                        item.next_name()
-                            .filter(|name| *name == completed)
-                            .map(|_| item.advanced())
-                    }).collect::<Vec<Item>>()
-            );
+            let items = target_state_set
+                .items()
+                .iter()
+                .filter_map(|item| {
+                    item.next_name()
+                        .filter(|name| *name == completed)
+                        .map(|_| item.advanced())
+                })
+                .collect::<Vec<Item<'_>>>();
+
+            current_state.add(items);
             None
         }
     }
@@ -103,27 +119,19 @@ impl<'a> Item<'a> {
     /// Common Scan implementation. Unconditionally returns None if `pos` is
     /// past the end of `input`, otherwise the character is passed to pred. If
     /// pred succeeds the item is returned advanced by one place (see the Scan
-    /// branch of Item::parse), if it fails None is returned.
-    fn scan(
-        &self,
-        input: &[char],
-        pos: usize,
-        pred: impl FnOnce(&char) -> bool
-    ) -> Option<Self> {
-        input.get(pos).copied().filter(pred).map(|_| self.advanced())
+    /// branch of `Item::parse`), if it fails None is returned.
+    fn scan(&self, input: &[char], pos: usize, pred: impl FnOnce(&char) -> bool) -> Option<Self> {
+        input
+            .get(pos)
+            .copied()
+            .filter(pred)
+            .map(|_| self.advanced())
     }
 
     /// If the next symbol to be processed is a rule this returns the name of
     /// that rule, otherwise it returns None.
     fn next_name(&self) -> Option<&str> {
-        if let Some(symbol) = self.rule.get(self.progress) {
-            match symbol {
-                Symbol::Rule(name) => Some(name),
-                _ => None
-            }
-        } else {
-            None
-        }
+        self.rule.get(self.progress).and_then(Symbol::rule_name)
     }
 
     /// Returns a copy of the current item with its progress marker advanced
@@ -141,9 +149,11 @@ impl fmt::Display for Item<'_> {
 
         body.insert(self.progress, Symbol::Rule(String::from("\u{25CF}")));
 
-        let body = body.into_iter()
+        let body = body
+            .into_iter()
             .map(|s| s.to_string())
-            .collect::<Vec<_>>().join(" ");
+            .collect::<Vec<_>>()
+            .join(" ");
 
         write!(f, "{} -> {} ({})", self.rule.name(), body, self.start)
     }

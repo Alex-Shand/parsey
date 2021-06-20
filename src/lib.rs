@@ -1,38 +1,54 @@
+//! Earley parser
+#![warn(elided_lifetimes_in_paths)]
+#![warn(missing_debug_implementations)]
+#![warn(missing_docs)]
+#![warn(noop_method_call)]
+#![warn(unreachable_pub)]
+#![warn(unused_crate_dependencies)]
+#![warn(unused_import_braces)]
+#![warn(unused_lifetimes)]
+#![warn(unused_qualifications)]
+#![deny(unsafe_code)]
+#![deny(unsafe_op_in_unsafe_fn)]
+#![deny(unused_results)]
+#![warn(clippy::pedantic)]
+
 use grammar::Grammar;
-use state::{ StateSet, Item };
+use state::{Item, StateSet};
 
 pub mod grammar;
 
 mod state;
 
-fn expand_input<S>(input: S) -> Vec<char> where S: AsRef<str> {
+fn expand_input<S>(input: S) -> Vec<char>
+where
+    S: AsRef<str>,
+{
     input.as_ref().chars().collect()
 }
 
 fn build_parse_state<'a>(
     start_symbol: &'a str,
     grammar: &'a Grammar,
-    input: &'a Vec<char>
+    input: &'a [char],
 ) -> Result<Vec<StateSet<'a>>, &'a [char]> {
     // Initial state set is seeded with all of the rules that can produce the
     // start symbol
-    let mut parse_state = vec![
-        StateSet::new(
-            Item::from_rules(grammar.get_rules_by_name(start_symbol), 0)
-        )
-    ];
+    let mut parse_state = vec![StateSet::new(Item::from_rules(
+        grammar.get_rules_by_name(start_symbol),
+        0,
+    ))];
 
     // len + 1 because completions still need to occur after the last character
     // is consumed, predictions can also safely occur and are useless. Any
     // attempt to scan will fail that thread of the parse.
-    for current_position in 0..input.len() + 1 {
-
+    for current_position in 0..=input.len() {
         if current_position >= parse_state.len() {
             // Ran out of state before running out of input, we didn't manage to
             // parse the whole string (use current_position - 1 because the
             // error actually occurred in the previous iteration of the loop,
             // safe because parse_state.len() is always >= 1)
-            return Err(&input[current_position-1..input.len()]);
+            return Err(&input[current_position - 1..input.len()]);
         }
 
         // The algorithm requires simultaneous write access to the last state
@@ -58,13 +74,9 @@ fn build_parse_state<'a>(
             // only generate items with progress at 0 and completions generate
             // items where the symbol to the left of the progress marker is a
             // non-terminal.
-            if let Some(item) = item.parse(
-                grammar,
-                current_state,
-                prev_state,
-                &input,
-                current_position
-            ) {
+            if let Some(item) =
+                item.parse(grammar, current_state, prev_state, &input, current_position)
+            {
                 to_add.push(item)
             };
         }
@@ -83,7 +95,11 @@ fn build_parse_state<'a>(
 
 /// Return `true` if the input string is in the language described by
 /// `grammar`, false otherwise.
-pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
+#[allow(clippy::missing_panics_doc)]
+pub fn recognise<S>(grammar: &Grammar, input: S) -> bool
+where
+    S: AsRef<str>,
+{
     let input = expand_input(input);
     let start_symbol = grammar.start_symbol();
 
@@ -92,7 +108,11 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
     if let Ok(parse_state) = build_parse_state(start_symbol, grammar, &input) {
         // The parse succeeded if there is at least one item in the last state set
         // that ...
-        parse_state.last().unwrap().items().iter()
+        parse_state
+            .last()
+            .unwrap()
+            .items()
+            .iter()
             .filter(|item| {
                 // ... produces the start symbol ...
                 item.rule_name() == start_symbol &&
@@ -100,14 +120,16 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
                     item.start() == &0 &&
                 // ... and has completed.
                     item.is_complete()
-            }).count() != 0
+            })
+            .count()
+            != 0
     } else {
-        return false;
+        false
     }
 }
 
 syntax_abuse::tests! {
-    
+
     testdata! {
         ARITH : Grammar = grammar! {
             Sum -> Sum ["+-"] Product;
@@ -118,6 +140,18 @@ syntax_abuse::tests! {
             Factor -> Number;
             Number -> ["0123456789"] Number;
             Number -> ["0123456789"];
+        };
+        EMPTY: Grammar = grammar! {
+            Empty ->;
+        };
+        ALMOST_EMPTY: Grammar = grammar! {
+            Rule -> "Rule" Empty;
+            Empty ->;
+        };
+        LOOP : Grammar = grammar! {
+            A ->;
+            A -> B;
+            B -> A
         };
     }
 
@@ -169,7 +203,7 @@ syntax_abuse::tests! {
         ) -> Vec<Item<'_>> {
             vec![Item::from_parts(grammar.index(idx), start, progress)]
         }
-        
+
         testcase! {
             success,
             ARITH,
@@ -250,8 +284,15 @@ syntax_abuse::tests! {
             "+1",
             err!("+1")
         }
+
+        testcase! {
+            loop_grammar,
+            LOOP,
+            "",
+            err!("")
+        }
     }
-    
+
     tests! {
         recogniser:
 
@@ -277,6 +318,24 @@ syntax_abuse::tests! {
             valid_character_in_the_wrong_place,
             recognise(&ARITH, "+1"),
             false
+        }
+
+        testcase! {
+            empty_success,
+            recognise(&EMPTY, ""),
+            true
+        }
+
+        testcase! {
+            empty_fail,
+            recognise(&EMPTY, " "),
+            false
+        }
+
+        testcase! {
+            almost_empty,
+            recognise(&ALMOST_EMPTY, "Rule"),
+            true
         }
     }
 }

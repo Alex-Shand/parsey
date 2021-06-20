@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt;
 
 use super::symbol::Symbol;
@@ -8,7 +9,7 @@ use syntax_abuse as syntax;
 #[derive(Clone, PartialEq)]
 pub struct Rule {
     name: String,
-    body: Vec<Symbol>
+    body: Vec<Symbol>,
 }
 
 impl Rule {
@@ -17,19 +18,35 @@ impl Rule {
     ///
     /// # Panics
     /// If the rule name begins with `@`
+    #[must_use]
     pub fn new(name: String, body: Vec<Symbol>) -> Self {
         assert!(
-            !name.starts_with("@"),
+            !name.starts_with('@'),
             "Rule names beginning with @ are reserved"
         );
         Rule { name, body }
     }
 
-    syntax::get! { pub name : str }
-    syntax::get! { pub body : [Symbol] }
+    syntax::get! { pub(crate) name : str }
+    syntax::get! { pub(crate) body : [Symbol] }
 
-    pub fn get(&self, index: usize) -> Option<&Symbol> {
+    pub(crate) fn get(&self, index: usize) -> Option<&Symbol> {
         self.body.get(index)
+    }
+
+    pub(crate) fn is_nullable(&self, nullable_symbols: &HashSet<String>) -> bool {
+        if self.body.is_empty() {
+            return true;
+        }
+
+        if self.body.iter().any(Symbol::is_terminal) {
+            return false;
+        }
+
+        return self
+            .body
+            .iter()
+            .all(|s| nullable_symbols.contains(s.rule_name().unwrap()));
     }
 }
 
@@ -39,9 +56,11 @@ impl fmt::Display for Rule {
             f,
             "{} -> {}",
             self.name,
-            self.body.iter()
-                .map(|s| s.to_string())
-                .collect::<Vec<_>>().join(" ")
+            self.body
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(" ")
         )
     }
 }
@@ -57,7 +76,7 @@ syntax::tests! {
     #[test]
     #[should_panic]
     fn reserved_name() {
-        Rule::new(String::from("@reserved"), vec![]);
+        drop(Rule::new(String::from("@reserved"), vec![]));
     }
 
     testcase! {

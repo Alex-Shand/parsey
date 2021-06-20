@@ -1,39 +1,38 @@
 use std::fmt;
-    
+
 use syntax_abuse as syntax;
 
 use super::item::Item;
-    
+
 /// The set of Earley items produced from one step of the algorithm
 #[derive(PartialEq, Clone, Debug)]
-pub struct StateSet<'a> {
+pub(crate) struct StateSet<'a> {
     items: Vec<Item<'a>>,
-    next: usize
+    next: usize,
 }
 
 impl<'a> StateSet<'a> {
-
     /// Constructs a new state set from a vector of items. Note: This function
     /// assumes that each item in the vector is unique, though it's probably
     /// harmless if that isn't true the parser will do redundant work if there
     /// are duplicates.
-    pub fn new(items: Vec<Item<'a>>) -> Self {
+    pub(crate) fn new(items: Vec<Item<'a>>) -> Self {
         StateSet { items, next: 0 }
     }
 
     #[cfg(test)]
-    pub fn exhausted(items: Vec<Item<'a>>) -> Self {
+    pub(crate) fn exhausted(items: Vec<Item<'a>>) -> Self {
         let next = items.len() + 1;
         StateSet { items, next }
     }
 
     syntax::get! { pub items : [Item<'a>] }
-    
-    /// Effectively Iterator::next. No point using an actual iterator because a
-    /// for loop won't work while building the state set (as we have to mutate
+
+    /// Effectively `Iterator::next`. No point using an actual iterator because
+    /// a for loop won't work while building the state set (as we have to mutate
     /// it while iterating) and the rest of the time we operate on the whole set
     /// at once so can just get a reference to the underlying vector of items.
-    pub fn next(&mut self) -> Option<Item<'a>> {
+    pub(crate) fn next(&mut self) -> Option<Item<'a>> {
         let current = self.next;
         self.next += 1;
         self.items.get(current).copied()
@@ -41,7 +40,7 @@ impl<'a> StateSet<'a> {
 
     /// Add a bunch of new items to the state set, checking for each whether it
     /// is already there.
-    pub fn add(&mut self, new_items: Vec<Item<'a>>) {
+    pub(crate) fn add(&mut self, new_items: Vec<Item<'a>>) {
         for item in new_items {
             if !self.items.contains(&item) {
                 self.items.push(item)
@@ -55,8 +54,9 @@ impl fmt::Display for StateSet<'_> {
         write!(
             f,
             "{}",
-            self.items.iter()
-                .map(|i| i.to_string())
+            self.items
+                .iter()
+                .map(ToString::to_string)
                 .collect::<Vec<_>>()
                 .join("\n")
         )
