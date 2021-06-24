@@ -204,7 +204,7 @@ syntax_abuse::tests! {
                     String::from("Sum"),
                     vec![
                         Symbol::Rule(String::from("Sum")),
-                        Symbol::OneOf(hashset!['+', '-']),
+                        Symbol::OneOf(nonempty_hashset!['+', '-']),
                         Symbol::Rule(String::from("Product"))
                     ]
                 ),
@@ -218,7 +218,7 @@ syntax_abuse::tests! {
                     String::from("Product"),
                     vec![
                         Symbol::Rule(String::from("Product")),
-                        Symbol::OneOf(hashset!['*', '/']),
+                        Symbol::OneOf(nonempty_hashset!['*', '/']),
                         Symbol::Rule(String::from("Factor"))
                     ]
                 ),
@@ -245,7 +245,7 @@ syntax_abuse::tests! {
                 Rule::new(
                     String::from("Number"),
                     vec![
-                        Symbol::OneOf(hashset![
+                        Symbol::OneOf(nonempty_hashset![
                             '0',
                             '1',
                             '2',
@@ -263,7 +263,7 @@ syntax_abuse::tests! {
                 Rule::new(
                     String::from("Number"),
                     vec![
-                        Symbol::OneOf(hashset![
+                        Symbol::OneOf(nonempty_hashset![
                             '0',
                             '1',
                             '2',
@@ -293,7 +293,7 @@ syntax_abuse::tests! {
             NotNullable -> Literal TriviallyNullable OneOf;
         };
     }
-    
+
     testcase! {
         nullability,
         &*NULLABILITY,
@@ -316,7 +316,7 @@ syntax_abuse::tests! {
 
     tests! {
         rule_is_nullable:
-        
+
         testcase! {
             trivially_nullable,
             NULLABILITY.rule_is_nullable("TriviallyNullable"),
@@ -328,7 +328,7 @@ syntax_abuse::tests! {
             NULLABILITY.rule_is_nullable("OnlyUsesNullableRules"),
             true
         }
-        
+
         testcase! {
             recursively_nullable,
             NULLABILITY.rule_is_nullable("RecursivelyNullable"),

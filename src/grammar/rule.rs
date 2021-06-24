@@ -101,7 +101,7 @@ syntax::tests! {
                 Symbol::Literal('r'),
                 Symbol::Literal('a'),
                 Symbol::Literal('l'),
-                Symbol::OneOf(hashset!['o', 'n', 'e', 'o', 'f']),
+                Symbol::OneOf(nonempty_hashset!['o', 'n', 'e', 'o', 'f']),
                 Symbol::Rule(String::from("Rule"))
             ]
         }

@@ -1,5 +1,6 @@
-use std::collections::HashSet;
 use std::fmt;
+
+use crate::NonEmptyHashSet;
 
 /// Valid symbols for a [Rule](super::Rule) body
 #[derive(PartialEq, Clone)]
@@ -11,7 +12,7 @@ pub enum Symbol {
     Literal(char),
     /// Succeeds if the next character in the input matches any of the contained
     /// characters
-    OneOf(HashSet<char>),
+    OneOf(NonEmptyHashSet<char>),
 }
 
 impl Symbol {
@@ -58,7 +59,7 @@ syntax_abuse::tests! {
     testcase! {
         oneof,
         &symbol!(["12345"])[0],
-        &Symbol::OneOf(hashset!['1', '2', '3', '4', '5'])
+        &Symbol::OneOf(nonempty_hashset!['1', '2', '3', '4', '5'])
     }
 
     testcase! {

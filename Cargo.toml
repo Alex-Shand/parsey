@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 syntax-abuse = { git = "https://github.com/Alex-Shand/syntax-abuse" }
+derive_deref = "1.1.1"

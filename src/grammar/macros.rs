@@ -18,7 +18,9 @@ macro_rules! symbol {
     // rule!)
     ([ $str:literal ]) => {
         vec![$crate::grammar::Symbol::OneOf(
-            $str.chars().collect::<::std::collections::HashSet<_>>(),
+            $crate::NonEmptyHashSet::new(
+                $str.chars().collect::<::std::collections::HashSet<_>>()
+            ),
         )]
     };
     // A string literal without [] is a sequence of Literal matchers (one for
@@ -152,7 +154,11 @@ macro_rules! grammar_aux {
 ///     Grammar::new(vec![
 ///         Rule::new(
 ///             String::from("Rule"),
-///             vec![Symbol::OneOf(vec!['1','2'].into_iter().collect::<HashSet<_>>())]
+///             vec![Symbol::OneOf(
+///                 parsey::NonEmptyHashSet::new(
+///                     vec!['1','2'].into_iter().collect::<HashSet<_>>()
+///                 )
+///             )]
 ///         )
 ///     ])
 /// )
@@ -178,4 +184,10 @@ macro_rules! hashset {
     ($($e:expr),*) => {
         vec![$($e),*].into_iter().collect::<::std::collections::HashSet<_>>()
     }
+}
+
+
+#[cfg(test)]
+macro_rules! nonempty_hashset {
+    ($($e:expr),*) => { $crate::NonEmptyHashSet::new(hashset![$($e),*]) }
 }

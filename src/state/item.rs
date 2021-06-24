@@ -89,8 +89,16 @@ impl<'a> Item<'a> {
                 // the current item advanced by one place (over the
                 // terminal), this will be added to the next state set by
                 // the caller when it is created.
-                Symbol::Literal(c) => self.scan(input, current_position, |next| next == c),
-                Symbol::OneOf(cs) => self.scan(input, current_position, |next| cs.contains(next)),
+                Symbol::Literal(c) => self.scan(
+                    input,
+                    current_position,
+                    |next| next == c
+                ),
+                Symbol::OneOf(cs) => self.scan(
+                    input,
+                    current_position,
+                    |next| cs.contains(next)
+                ),
             }
         } else {
             // Completion: See below

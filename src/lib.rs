@@ -20,6 +20,8 @@ use state::{Item, StateSet};
 pub mod grammar;
 
 mod state;
+mod utils;
+pub use utils::NonEmptyHashSet;
 
 fn expand_input<S>(input: S) -> Vec<char>
 where
