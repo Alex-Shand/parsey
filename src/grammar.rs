@@ -11,7 +11,7 @@ mod rule;
 mod symbol;
 
 /// Grammar suitable for Earley parsing
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct Grammar {
     rules: Vec<Rule>,
     nullables: HashSet<String>,
@@ -42,6 +42,10 @@ impl Grammar {
             .collect::<Vec<_>>()
     }
 
+    pub(crate) fn rule_is_nullable(&self, rule: &str) -> bool {
+        self.nullables.contains(rule)
+    }
+
     #[cfg(test)]
     #[must_use]
     pub(crate) fn index(&self, idx: usize) -> &Rule {
@@ -60,11 +64,6 @@ impl fmt::Display for Grammar {
                 .collect::<Vec<_>>()
                 .join("\n")
         )
-    }
-}
-impl fmt::Debug for Grammar {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self)
     }
 }
 
@@ -101,7 +100,7 @@ syntax_abuse::tests! {
         Grammar::new(vec![Rule::new(String::from("Test"), vec![])]),
         Grammar {
             rules: vec![Rule::new(String::from("Test"), vec![])],
-            nullables: hashset![]
+            nullables: hashset![String::from("Test")]
         }
     }
 
@@ -262,7 +261,7 @@ syntax_abuse::tests! {
                     ]
                 ),
                 Rule::new(
-                String::from("Number"),
+                    String::from("Number"),
                     vec![
                         Symbol::OneOf(hashset![
                             '0',
@@ -280,6 +279,78 @@ syntax_abuse::tests! {
                 )
             ],
             nullables: hashset![]
+        }
+    }
+
+
+    testdata! {
+        NULLABILITY: Grammar = grammar! {
+            TriviallyNullable -> ;
+            OnlyUsesNullableRules -> TriviallyNullable TriviallyNullable;
+            RecursivelyNullable -> OnlyUsesNullableRules RecursivelyNullable;
+            Literal -> "Literal";
+            OneOf -> ["abcde"];
+            NotNullable -> Literal TriviallyNullable OneOf;
+        };
+    }
+    
+    testcase! {
+        nullability,
+        &*NULLABILITY,
+        &Grammar {
+            rules: vec![
+                rule!(TriviallyNullable -> ),
+                rule!(OnlyUsesNullableRules -> TriviallyNullable TriviallyNullable),
+                rule!(RecursivelyNullable -> OnlyUsesNullableRules RecursivelyNullable),
+                rule!(Literal -> "Literal"),
+                rule!(OneOf -> ["abcde"]),
+                rule!(NotNullable -> Literal TriviallyNullable OneOf)
+            ],
+            nullables: hashset![
+                String::from("TriviallyNullable"),
+                String::from("OnlyUsesNullableRules"),
+                String::from("RecursivelyNullable")
+            ]
+        }
+    }
+
+    tests! {
+        rule_is_nullable:
+        
+        testcase! {
+            trivially_nullable,
+            NULLABILITY.rule_is_nullable("TriviallyNullable"),
+            true
+        }
+
+        testcase! {
+            nullable,
+            NULLABILITY.rule_is_nullable("OnlyUsesNullableRules"),
+            true
+        }
+        
+        testcase! {
+            recursively_nullable,
+            NULLABILITY.rule_is_nullable("RecursivelyNullable"),
+            true
+        }
+
+        testcase! {
+            literal,
+            NULLABILITY.rule_is_nullable("Literal"),
+            false
+        }
+
+        testcase! {
+            oneof,
+            NULLABILITY.rule_is_nullable("OneOf"),
+            false
+        }
+
+        testcase! {
+            not_nullable,
+            NULLABILITY.rule_is_nullable("NotNullable"),
+            false
         }
     }
 }

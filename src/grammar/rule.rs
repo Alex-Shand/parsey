@@ -43,10 +43,14 @@ impl Rule {
             return false;
         }
 
-        return self
-            .body
+        self.body
             .iter()
-            .all(|s| nullable_symbols.contains(s.rule_name().unwrap()));
+            .all(|s| {
+                let name = s.rule_name().unwrap();
+                // If the rule would otherwise be nullable, recursively calling
+                // itself shouldn't prevent it from being marked
+                name == self.name || nullable_symbols.contains(name)
+            })
     }
 }
 
@@ -72,7 +76,6 @@ impl fmt::Debug for Rule {
 }
 
 syntax::tests! {
-
     #[test]
     #[should_panic]
     fn reserved_name() {
@@ -102,5 +105,53 @@ syntax::tests! {
                 Symbol::Rule(String::from("Rule"))
             ]
         }
+    }
+
+    testcase! {
+        empty_literal,
+        rule!(Rule -> ""),
+        Rule { name: String::from("Rule"), body: vec![] }
+    }
+
+    testcase! {
+        trivially_nullable_rule,
+        rule!(Rule -> ).is_nullable(&hashset![]),
+        true
+    }
+
+    testcase! {
+        literal_is_not_nullable,
+        rule!(Rule -> "x").is_nullable(&hashset![]),
+        false
+    }
+
+    testcase! {
+        oneof_is_not_nullable,
+        rule!(Rule -> ["x"]).is_nullable(&hashset![]),
+        false
+    }
+
+    testcase! {
+        transitively_nullable_rule,
+        rule!(Rule -> Rule2).is_nullable(&hashset![String::from("Rule2")]),
+        true
+    }
+
+    testcase! {
+        transitively_non_nullable_rule,
+        rule!(Rule -> Rule2).is_nullable(&hashset![]),
+        false
+    }
+
+    testcase! {
+        recursivley_nullable_rules,
+        rule!(Rule -> Rule).is_nullable(&hashset![]),
+        true
+    }
+
+    testcase! {
+        empty_literal_is_nullable,
+        rule!(Rule -> "").is_nullable(&hashset![]),
+        true
     }
 }

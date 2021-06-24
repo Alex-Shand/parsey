@@ -11,6 +11,7 @@
 #![deny(unsafe_code)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(unused_results)]
+//#![deny(dead_code)]
 #![warn(clippy::pedantic)]
 
 use grammar::Grammar;
@@ -289,7 +290,14 @@ syntax_abuse::tests! {
             loop_grammar,
             LOOP,
             "",
-            err!("")
+            Ok(vec![
+                StateSet::exhausted(flatvec![
+                    make_items(&LOOP, "A", 0, 0),
+                    make_items(&LOOP, "B", 0, 0),
+                    make_items(&LOOP, "B", 0, 1),
+                    make_item(&LOOP, 1, 0, 1)
+                ])
+            ])
         }
     }
 

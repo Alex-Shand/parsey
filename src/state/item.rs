@@ -29,7 +29,11 @@ impl<'a> Item<'a> {
     }
 
     #[cfg(test)]
-    pub(crate) fn from_parts(rule: &'a Rule, start: usize, progress: usize) -> Self {
+    pub(crate) fn from_parts(
+        rule: &'a Rule,
+        start: usize,
+        progress: usize
+    ) -> Self {
         Item {
             rule,
             start,
@@ -72,6 +76,12 @@ impl<'a> Item<'a> {
                         grammar.get_rules_by_name(name),
                         current_position,
                     ));
+
+                    // If the rule we just predicted is nullable complete it
+                    // immediately
+                    if grammar.rule_is_nullable(name) {
+                        self.complete(current_state, prev_state);
+                    }
                     None
                 }
                 // Scan: If the current character matches the current
@@ -83,35 +93,8 @@ impl<'a> Item<'a> {
                 Symbol::OneOf(cs) => self.scan(input, current_position, |next| cs.contains(next)),
             }
         } else {
-            // Completion: Find all rules in the state set this item started
-            // in that need the non-terminal produced by this rule to
-            // complete and add them to this state set advanced by one place
-            // (over the non-terminal)
-
-            // Find the state set the completed rule started in (will usually be
-            // a previous state set but completions caused by matching the empty
-            // string will start in the current state set)
-            let target_state_set: &StateSet<'_>;
-            if self.start == prev_state.len() {
-                target_state_set = current_state;
-            } else {
-                target_state_set = &prev_state[self.start];
-            }
-
-            // This bit has to be separate from the current_state.add() call
-            // because target_state_set could be an alias for current_state
-            let completed = self.rule.name();
-            let items = target_state_set
-                .items()
-                .iter()
-                .filter_map(|item| {
-                    item.next_name()
-                        .filter(|name| *name == completed)
-                        .map(|_| item.advanced())
-                })
-                .collect::<Vec<Item<'_>>>();
-
-            current_state.add(items);
+            // Completion: See below
+            self.complete(current_state, prev_state);
             None
         }
     }
@@ -126,6 +109,42 @@ impl<'a> Item<'a> {
             .copied()
             .filter(pred)
             .map(|_| self.advanced())
+    }
+
+    /// Completion step, called when a real completion is encountered and if a
+    /// nullable rule is predicted. Find all rules in the state set this item started
+    /// in that need the non-terminal produced by this rule to
+    /// complete and add them to this state set advanced by one place
+    /// (over the non-terminal)
+    fn complete(
+        &self,
+        current_state: &mut StateSet<'a>,
+        prev_state: &[StateSet<'a>]
+    ) {
+        // Find the state set the completed rule started in (will usually be
+        // a previous state set but completions caused by matching the empty
+        // string will start in the current state set)
+        let target_state_set: &StateSet<'_>;
+        if self.start == prev_state.len() {
+            target_state_set = current_state;
+        } else {
+            target_state_set = &prev_state[self.start];
+        }
+
+        // This bit has to be separate from the current_state.add() call
+        // because target_state_set could be an alias for current_state
+        let completed = self.rule.name();
+        let items = target_state_set
+            .items()
+            .iter()
+            .filter_map(|item| {
+                item.next_name()
+                    .filter(|name| *name == completed)
+                    .map(|_| item.advanced())
+            })
+            .collect::<Vec<Item<'_>>>();
+
+        current_state.add(items);
     }
 
     /// If the next symbol to be processed is a rule this returns the name of
