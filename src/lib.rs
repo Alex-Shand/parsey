@@ -1,6 +1,5 @@
 //! Earley parser
 #![warn(elided_lifetimes_in_paths)]
-#![warn(missing_debug_implementations)]
 #![warn(missing_docs)]
 #![warn(noop_method_call)]
 #![warn(unreachable_pub)]
@@ -11,6 +10,8 @@
 #![deny(unsafe_code)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(unused_results)]
+#![deny(missing_debug_implementations)]
+#![deny(missing_copy_implementations)]
 //#![deny(dead_code)]
 #![warn(clippy::pedantic)]
 
