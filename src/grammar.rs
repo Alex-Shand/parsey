@@ -5,8 +5,6 @@ use std::fmt;
 pub use rule::Rule;
 pub use symbol::Symbol;
 
-#[macro_use]
-mod macros;
 mod rule;
 mod symbol;
 

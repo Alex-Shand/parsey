@@ -1,7 +1,7 @@
 use parsey::grammar;
 
 fn main() {
-    let _grammar = grammar! {
+    let grammar = grammar! {
         Sum -> Sum ["+-"] Product;
         Sum -> Product;
         Product -> Product ["*/"] Factor;
@@ -11,4 +11,6 @@ fn main() {
         Number -> ["0123456789"] Number;
         Number -> ["0123456789"];
     };
+
+    parsey::parse(&grammar, "1+2")
 }

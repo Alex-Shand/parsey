@@ -18,7 +18,11 @@
 use grammar::Grammar;
 use state::{Item, StateSet};
 
+#[macro_use]
+mod macros;
+
 pub mod grammar;
+pub mod ast;
 
 mod state;
 mod utils;
@@ -78,9 +82,13 @@ fn build_parse_state<'a>(
             // only generate items with progress at 0 and completions generate
             // items where the symbol to the left of the progress marker is a
             // non-terminal.
-            if let Some(item) =
-                item.parse(grammar, current_state, prev_state, &input, current_position)
-            {
+            if let Some(item) = item.parse(
+                grammar,
+                current_state,
+                prev_state,
+                &input,
+                current_position
+            ) {
                 to_add.push(item)
             };
         }
@@ -100,10 +108,7 @@ fn build_parse_state<'a>(
 /// Return `true` if the input string is in the language described by
 /// `grammar`, false otherwise.
 #[allow(clippy::missing_panics_doc)]
-pub fn recognise<S>(grammar: &Grammar, input: S) -> bool
-where
-    S: AsRef<str>,
-{
+pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
     let input = expand_input(input);
     let start_symbol = grammar.start_symbol();
 
@@ -130,6 +135,20 @@ where
     } else {
         false
     }
+}
+
+pub fn parse<S>(grammar: &Grammar, input: S) where S: AsRef<str> {
+    let input = expand_input(input);
+    let start_symbol = grammar.start_symbol();
+
+    println!(
+        "{:#?}",
+        if let Ok(parse_state) = build_parse_state(start_symbol, grammar, &input) {
+            Some(ast::Node::from_parse_state(start_symbol, parse_state, &input).collect::<Vec<_>>())
+        } else {
+            None
+        }
+    )
 }
 
 syntax_abuse::tests! {

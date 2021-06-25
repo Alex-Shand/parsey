@@ -41,6 +41,7 @@ impl<'a> Item<'a> {
         }
     }
 
+    syntax::get! { pub rule : &'a Rule }
     syntax::get! { pub start : usize }
 
     /// The name of the rule this item wraps.
