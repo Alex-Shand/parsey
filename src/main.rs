@@ -14,6 +14,6 @@ fn main() {
 
     println!(
         "{:#?}",
-        parsey::parse(&grammar, "(1+2)").map(|i| i.collect::<Vec<_>>())
+        parsey::parse(&grammar, "(1+2)*3/500").map(|i| i.collect::<Vec<_>>())
     )
 }

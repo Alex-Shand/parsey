@@ -143,7 +143,6 @@ pub fn parse<'a, S>(grammar: &'a Grammar, input: S) -> Result<impl Iterator<Item
     let start_symbol = grammar.start_symbol();
 
     let parse_state = build_parse_state(start_symbol, grammar, &input)?;
-    println!("{:#?}", parse_state);
     Ok(ast::Node::from_parse_state(start_symbol, parse_state, input))
 }
 

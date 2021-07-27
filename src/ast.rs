@@ -8,6 +8,27 @@ use search::BacktrackingSearch;
 use crate::state::StateSet;
 use crate::grammar::{Rule, Symbol};
 
+#[derive(Debug, Copy, Clone)]
+enum Uncertain {
+    Known(usize),
+    Unknown(usize)
+}
+
+impl Uncertain {
+    fn subtract(self, other: Self) -> Self {
+        match self {
+            Uncertain::Known(a) => match other {
+                Uncertain::Known(b) => Uncertain::Known(a - b),
+                Uncertain::Unknown(b) => Uncertain::Unknown(a - b)
+            },
+            Uncertain::Unknown(a) => match other {
+                Uncertain::Known(b) => Uncertain::Unknown(a - b),
+                Uncertain::Unknown(b) => Uncertain::Unknown(a - b)
+            }
+        }
+    }
+}
+
 #[derive(Clone)]
 pub enum Node {
     Internal {
@@ -15,12 +36,6 @@ pub enum Node {
         children: Vec<Node>
     },
     Leaf(char)
-}
-
-#[derive(Debug, Copy, Clone)]
-enum End {
-    Exactly(usize),
-    Before(usize)
 }
 
 impl Node {
@@ -35,7 +50,7 @@ impl Node {
             Rc::new(input),
             start_symbol,
             0,
-            End::Exactly(len)
+            Uncertain::Known(len)
         )
     }
 
@@ -98,14 +113,14 @@ fn transpose(state: Vec<StateSet<'_>>) -> Vec<Vec<Item<'_>>> {
     result
 }
 
-#[derive(Debug)]
 struct NodeIterator<'a> {
-    candidates: VecDeque<Item<'a>>,
-    search: BacktrackingSearch<'a, Symbol, Node>,
+    current: Option<Item<'a>>,
+    candidates: Vec<Item<'a>>,
+    progress: Vec<(Node, Box<dyn Iterator<Item=Node> + 'a>)>,
     parse_state: Rc<Vec<Vec<Item<'a>>>>,
     input: Rc<Vec<char>>,
     start: usize,
-    end: End
+    end: Uncertain
 }
 
 impl<'a> NodeIterator<'a> {
@@ -114,108 +129,131 @@ impl<'a> NodeIterator<'a> {
         input: Rc<Vec<char>>,
         name: &str,
         start: usize,
-        end: End
+        end: Uncertain
     ) -> Self {
-        let candidates = parse_state[start].iter().copied().filter(|item| item.rule.name() == name);
-        let candidates = match end {
-            End::Exactly(e) => candidates.filter(|item| item.end == e).collect::<VecDeque<_>>(),
-            End::Before(e) => candidates.filter(|item| item.end < e).collect::<VecDeque<_>>()
-        };
-        let mut this = NodeIterator {
+        let mut candidates =
+            // Check for candidates that start at the correct position ...
+            parse_state[start].iter()
+            // ... with a matching name ...
+            .filter(|item| item.rule.name() == name)
+            // ... and isn't too long
+            .filter(|item| match end {
+                Uncertain::Known(e) => item.end == e,
+                Uncertain::Unknown(e) => item.end <= e
+            })
+            .copied().collect::<Vec<_>>();
+
+        // Reverse to treat it as a stack of candidates
+        candidates.reverse();
+
+        // First candidate or None if no candidate was found
+        let current = candidates.pop();
+
+        NodeIterator {
+            current,
             candidates,
-            search: BacktrackingSearch::default(),
-            parse_state,
-            input,
+            progress: Vec::new(),
+            parse_state: Rc::clone(&parse_state),
+            input: Rc::clone(&input),
             start,
             end
-        };
-        if !this.candidates.is_empty() {
-            this.init_search();
         }
-        this
-     }
+    }
 
-    fn init_search(&mut self) {
-        if self.candidates.is_empty() {
-            self.search = BacktrackingSearch::default();
-            return;
-        }
-        let candidate = self.candidates[0];
-        let body = candidate.rule.body();
-        let parse_state = Rc::clone(&self.parse_state);
-        let input = Rc::clone(&self.input);
-        let start = self.start;
-        let end = self.end;
-        let body_len = body.len();
-        self.search = BacktrackingSearch::new(
-            body,
-            move |symbol, nodes: &[Node]| {
-                let offset: usize = nodes.iter().map(|n| n.len()).sum();
-                let start = start + offset;
-
-                let end = match end {
-                    End::Exactly(e) => if nodes.len() < body.len() - 1 {
-                        End::Before(e)
-                    } else {
-                        End::Exactly(e)
-                    }
-                    e @ End::Before(_) => e
-                };
-
-                match symbol {
-                    Symbol::Rule(name) => Box::new(
-                        NodeIterator::new(
-                            Rc::clone(&parse_state),
-                            Rc::clone(&input),
-                            name,
-                            start,
-                            end
-                        )
-                    ),
-                    Symbol::Literal(c) => {
-                        println!("Literal Start: {}, Char: {}, Expected: {}", start, input[start], c);
-                        if input[start] == '+' {
-                            println!("{:?}", parse_state);
-                        }
-                        if *c == input[start] {
-                            Box::new(once(Node::Leaf(*c)))
-                        } else {
-                            Box::new(empty())
-                        }
-                    },
-                    Symbol::OneOf(chars) => {
-                        println!("OneOf Start: {}, Char: {}, Expected: {:?}", start, input[start], chars);
-                        let c = input[start];
-                        if chars.contains(&c) {
-                            Box::new(once(Node::Leaf(c)))
-                        } else {
-                            Box::new(empty())
-                        }
-                    }
+    fn step(&mut self) {
+        loop {
+            if let Some((_, mut iter)) = self.progress.pop() {
+                if let Some(node) = iter.next() {
+                    self.progress.push((node, iter));
+                    return
                 }
+            } else {
+                self.current = self.candidates.pop();
+                return
             }
-        )
+        }
     }
 }
 
 impl Iterator for NodeIterator<'_> {
     type Item = Node;
     fn next(&mut self) -> Option<Self::Item> {
+        // Repeat until we produce a node
         loop {
-            if self.candidates.is_empty() {
-                return None;
+            // End the iterator if there is no current candidate
+            let current = self.current?;
+            let body = current.rule.body();
+
+            if self.progress.len() == body.len() {
+                // Constructed a full set of children, make a copy ...
+                let children = self.progress.iter().map(|(n, _)| n).cloned().collect::<Vec<_>>();
+                // ... step to the next state ...
+                self.step();
+                // ... and return the node
+                return Some(Node::Internal {
+                    name: String::from(current.rule.name()),
+                    children
+                })
             }
-            let candidate = self.candidates[0];
-            if let Some(children) = self.search.next() {
-                return Some(
-                    Node::Internal {
-                        name: String::from(candidate.rule.name()),
-                        children
+
+            // Symbol we need to produce a node for
+            let current_symbol = &body[self.progress.len()];
+            // The part of the rule we don't yet have nodes for
+            let rest = &body[self.progress.len()+1..];
+
+            // Advance the start position by the known length of all the nodes
+            // we've found so far
+            let child_start = self.start + length(&self.progress[..]);
+            let child_end = if self.progress.len() == body.len() - 1 {
+                // The current symbol is the last one the end marker is the same
+                // as the current one
+                self.end
+            } else {
+                // Otherwise calculate an (uncertain) lower bound on the length
+                // of the remaining symbols and subtract from the end position,
+                // always results in an uncertain value
+                self.end.subtract(lowerbound_length(rest))
+            };
+
+            match current_symbol {
+                Symbol::Rule(name) => {
+                    // Dispatch to a sub iterator to handle internal nodes
+                    let mut nodes = NodeIterator::new(
+                        Rc::clone(&self.parse_state),
+                        Rc::clone(&self.input),
+                        &name,
+                        child_start,
+                        child_end
+                    );
+                    if let Some(node) = nodes.next() {
+                        self.progress.push((node, Box::new(nodes)))
+                    } else {
+                        self.step()
                     }
-                );
+                }
+                Symbol::Literal(c) => {
+                    if self.input[child_start] == *c {
+                        self.progress.push((Node::Leaf(*c), Box::new(empty())));
+                    } else {
+                        self.step()
+                    }
+                }
+                Symbol::OneOf(chars) => {
+                    if chars.contains(&self.input[child_start]) {
+                        self.progress.push((Node::Leaf(self.input[child_start]), Box::new(empty())));
+                    } else {
+                        self.step()
+                    }
+                }
             }
-            let _ = self.candidates.pop_front();
-            self.init_search();
         }
     }
+}
+
+fn length<'a>(nodes: &[(Node, Box<dyn Iterator<Item=Node> + 'a>)]) -> usize {
+    nodes.iter().map(|(n, _)| n.len()).sum()
+}
+
+fn lowerbound_length(items: &[Symbol]) -> Uncertain {
+    Uncertain::Unknown(items.len())
 }
