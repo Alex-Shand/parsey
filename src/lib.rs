@@ -26,6 +26,7 @@ pub mod ast;
 
 mod state;
 mod utils;
+
 pub use utils::NonEmptyHashSet;
 
 fn expand_input<S>(input: S) -> Vec<char>
@@ -35,11 +36,11 @@ where
     input.as_ref().chars().collect()
 }
 
-fn build_parse_state<'a>(
+fn build_parse_state<'a, 'b>(
     start_symbol: &'a str,
     grammar: &'a Grammar,
-    input: &'a [char],
-) -> Result<Vec<StateSet<'a>>, &'a [char]> {
+    input: &'b [char],
+) -> Result<Vec<StateSet<'a>>, String> {
     // Initial state set is seeded with all of the rules that can produce the
     // start symbol
     let mut parse_state = vec![StateSet::new(Item::from_rules(
@@ -56,7 +57,7 @@ fn build_parse_state<'a>(
             // parse the whole string (use current_position - 1 because the
             // error actually occurred in the previous iteration of the loop,
             // safe because parse_state.len() is always >= 1)
-            return Err(&input[current_position - 1..input.len()]);
+            return Err(input[current_position - 1..input.len()].iter().copied().collect::<String>());
         }
 
         // The algorithm requires simultaneous write access to the last state
@@ -137,18 +138,13 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
     }
 }
 
-pub fn parse<S>(grammar: &Grammar, input: S) where S: AsRef<str> {
+pub fn parse<'a, S>(grammar: &'a Grammar, input: S) -> Result<impl Iterator<Item=ast::Node> + 'a, String> where S: AsRef<str> {
     let input = expand_input(input);
     let start_symbol = grammar.start_symbol();
 
-    println!(
-        "{:#?}",
-        if let Ok(parse_state) = build_parse_state(start_symbol, grammar, &input) {
-            Some(ast::Node::from_parse_state(start_symbol, parse_state, &input).collect::<Vec<_>>())
-        } else {
-            None
-        }
-    )
+    let parse_state = build_parse_state(start_symbol, grammar, &input)?;
+    println!("{:#?}", parse_state);
+    Ok(ast::Node::from_parse_state(start_symbol, parse_state, input))
 }
 
 syntax_abuse::tests! {

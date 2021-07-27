@@ -12,5 +12,8 @@ fn main() {
         Number -> ["0123456789"];
     };
 
-    parsey::parse(&grammar, "1+2")
+    println!(
+        "{:#?}",
+        parsey::parse(&grammar, "(1+2)").map(|i| i.collect::<Vec<_>>())
+    )
 }

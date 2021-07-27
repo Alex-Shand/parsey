@@ -1,19 +1,79 @@
 use std::collections::VecDeque;
+use std::rc::Rc;
+use std::iter::{once, empty};
+use std::fmt;
 
-use generator::{ Gn, Generator, done };
+use search::BacktrackingSearch;
 
 use crate::state::StateSet;
 use crate::grammar::{Rule, Symbol};
 
-#[derive(Debug, Clone)]
-pub struct Node {
-    name: String,
-    children: Vec<Node>
+#[derive(Clone)]
+pub enum Node {
+    Internal {
+        name: String,
+        children: Vec<Node>
+    },
+    Leaf(char)
+}
+
+#[derive(Debug, Copy, Clone)]
+enum End {
+    Exactly(usize),
+    Before(usize)
 }
 
 impl Node {
-    pub(crate) fn from_parse_state<'a>(start_symbol: &'a str, parse_state: Vec<StateSet<'a>>, input: &'a [char]) -> impl Iterator<Item=Node> + 'a {
-        build_parse_trees(transpose(parse_state), input, start_symbol, 0, Some(input.len()))
+    pub(crate) fn from_parse_state<'a>(
+        start_symbol: &str,
+        parse_state: Vec<StateSet<'a>>,
+        input: Vec<char>
+    ) -> impl Iterator<Item=Node> + 'a {
+        let len = input.len();
+        NodeIterator::new(
+            Rc::new(transpose(parse_state)),
+            Rc::new(input),
+            start_symbol,
+            0,
+            End::Exactly(len)
+        )
+    }
+
+    fn len(&self) -> usize {
+        match self {
+            Node::Leaf(_) => 1,
+            Node::Internal{name, children} => children.iter().map(|n| n.len()).sum()
+        }
+    }
+}
+
+fn format_node(f: &mut fmt::Formatter<'_>, node: &Node, id: usize) -> fmt::Result {
+    let indent = if id == 0 && !f.alternate() {
+        String::from(" ")
+    } else {
+        "    ".repeat(id)
+    };
+    let indent = String::from("\n") + &indent;
+    match node {
+        Node::Leaf(c) => write!(f, "{}{}", indent, c),
+        Node::Internal{name, children} => {
+            write!(f, "{}{} {{", indent, name)?;
+            let id = if f.alternate() {
+                id + 1
+            } else {
+                id
+            };
+            for child in children {
+                format_node(f, child, id)?;
+            }
+            write!(f, "{}}}", indent)
+        }
+    }
+}
+
+impl fmt::Debug for Node {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        format_node(f, self, 0)
     }
 }
 
@@ -38,95 +98,124 @@ fn transpose(state: Vec<StateSet<'_>>) -> Vec<Vec<Item<'_>>> {
     result
 }
 
-fn leaf(name: &str) -> Node {
-    Node {
-        name: String::from(name),
-        children: Vec::new()
-    }
+#[derive(Debug)]
+struct NodeIterator<'a> {
+    candidates: VecDeque<Item<'a>>,
+    search: BacktrackingSearch<'a, Symbol, Node>,
+    parse_state: Rc<Vec<Vec<Item<'a>>>>,
+    input: Rc<Vec<char>>,
+    start: usize,
+    end: End
 }
 
-fn yield_leaf<'a, A>(name: &'a str) -> Generator<'_, A, Node> where A: Send + 'a {
-    Gn::new_scoped(move |mut s| {
-        let _ = s.yield_(leaf(name));
-        done!()
-    })
-}
+impl<'a> NodeIterator<'a> {
+    fn new(
+        parse_state: Rc<Vec<Vec<Item<'a>>>>,
+        input: Rc<Vec<char>>,
+        name: &str,
+        start: usize,
+        end: End
+    ) -> Self {
+        let candidates = parse_state[start].iter().copied().filter(|item| item.rule.name() == name);
+        let candidates = match end {
+            End::Exactly(e) => candidates.filter(|item| item.end == e).collect::<VecDeque<_>>(),
+            End::Before(e) => candidates.filter(|item| item.end < e).collect::<VecDeque<_>>()
+        };
+        let mut this = NodeIterator {
+            candidates,
+            search: BacktrackingSearch::default(),
+            parse_state,
+            input,
+            start,
+            end
+        };
+        if !this.candidates.is_empty() {
+            this.init_search();
+        }
+        this
+     }
 
-fn trees_from_symbol(symbol: &Symbol, input: &[char]) -> impl Iterator<Item=Node> {
-    match symbol {
-        Symbol::Rule(name) => todo!(),
-        Symbol::Literal(c) => todo!(),
-        Symbol::OneOf(chars) => todo!()
-    }
-    vec![].into_iter()
-}
-
-fn trees_from_item<'a>(item: Item<'a>, input: &[char]) -> impl Iterator<Item=Node> + 'a {
-    println!("{:?}", item);
-    let name = item.rule.name();
-    let body = item.rule.body();
-
-    if body.is_empty() {
-        return yield_leaf(name);
-    }
-
-    let mut first_child = trees_from_symbol(&body[0], input);
-    if let Some(candidate) = first_child.next() {
-        let mut stack = VecDeque::with_capacity(body.len());
-        stack.push_front((candidate, first_child));
-
-        Gn::new_scoped(move |mut s| {
-            while !stack.is_empty() {
-                fill_stack(&mut stack, &body);
-                assert!(stack.len() == body.len(), "Decision stack has {} elements, expected {}", stack.len(), body.len());
-                let _ = s.yield_(Node {
-                    name: String::from(name),
-                    children: stack.iter().map(|(c, _)| c.clone()).rev().collect::<Vec<_>>()
-                });
-                make_decision(&mut stack);
-            }
-            done!()
-        })
-    } else {
-        yield_leaf(name)
-    }
-}
-
-fn fill_stack(stack: &mut VecDeque<(Node, impl Iterator<Item=Node>)>, symbols: &[Symbol]) {
-}
-
-fn make_decision(stack: &mut VecDeque<(Node, impl Iterator<Item=Node>)>) {
-    assert!(!stack.is_empty(), "Decision stack is empty, should have bailed by now");
-    while !stack.is_empty() {
-        let (_, mut candidates) = stack.pop_front().unwrap();
-        if let Some(candidate) = candidates.next() {
-            stack.push_front((candidate, candidates));
+    fn init_search(&mut self) {
+        if self.candidates.is_empty() {
+            self.search = BacktrackingSearch::default();
             return;
         }
+        let candidate = self.candidates[0];
+        let body = candidate.rule.body();
+        let parse_state = Rc::clone(&self.parse_state);
+        let input = Rc::clone(&self.input);
+        let start = self.start;
+        let end = self.end;
+        let body_len = body.len();
+        self.search = BacktrackingSearch::new(
+            body,
+            move |symbol, nodes: &[Node]| {
+                let offset: usize = nodes.iter().map(|n| n.len()).sum();
+                let start = start + offset;
+
+                let end = match end {
+                    End::Exactly(e) => if nodes.len() < body.len() - 1 {
+                        End::Before(e)
+                    } else {
+                        End::Exactly(e)
+                    }
+                    e @ End::Before(_) => e
+                };
+
+                match symbol {
+                    Symbol::Rule(name) => Box::new(
+                        NodeIterator::new(
+                            Rc::clone(&parse_state),
+                            Rc::clone(&input),
+                            name,
+                            start,
+                            end
+                        )
+                    ),
+                    Symbol::Literal(c) => {
+                        println!("Literal Start: {}, Char: {}, Expected: {}", start, input[start], c);
+                        if input[start] == '+' {
+                            println!("{:?}", parse_state);
+                        }
+                        if *c == input[start] {
+                            Box::new(once(Node::Leaf(*c)))
+                        } else {
+                            Box::new(empty())
+                        }
+                    },
+                    Symbol::OneOf(chars) => {
+                        println!("OneOf Start: {}, Char: {}, Expected: {:?}", start, input[start], chars);
+                        let c = input[start];
+                        if chars.contains(&c) {
+                            Box::new(once(Node::Leaf(c)))
+                        } else {
+                            Box::new(empty())
+                        }
+                    }
+                }
+            }
+        )
     }
 }
 
-fn build_parse_trees<'a>(
-    state: Vec<Vec<Item<'a>>>,
-    input: &'a [char],
-    name: &'a str,
-    start: usize,
-    end: Option<usize>
-) -> impl Iterator<Item=Node> + 'a {
-    Gn::new_scoped(move |mut s| {
-        let candidates = state[start].iter().copied().filter(|item| item.rule.name() == name);
-        let candidates = if let Some(end) = end {
-            candidates.filter(|item| item.end == end).collect::<Vec<_>>()
-        } else {
-            candidates.collect::<Vec<_>>()
-        };
-
-        for candidate in candidates {
-            for node in trees_from_item(candidate, input) {
-                let _ = s.yield_(node);
+impl Iterator for NodeIterator<'_> {
+    type Item = Node;
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if self.candidates.is_empty() {
+                return None;
             }
+            let candidate = self.candidates[0];
+            if let Some(children) = self.search.next() {
+                return Some(
+                    Node::Internal {
+                        name: String::from(candidate.rule.name()),
+                        children
+                    }
+                );
+            }
+            let _ = self.candidates.pop_front();
+            self.init_search();
         }
-
-        done!()
-    })
+    }
 }
