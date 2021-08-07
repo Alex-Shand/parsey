@@ -21,8 +21,8 @@ use state::{Item, StateSet};
 #[macro_use]
 mod macros;
 
-pub mod grammar;
 pub mod ast;
+pub mod grammar;
 
 mod state;
 mod utils;
@@ -48,16 +48,19 @@ fn build_parse_state<'a, 'b>(
         0,
     ))];
 
-    // len + 1 because completions still need to occur after the last character
-    // is consumed, predictions can also safely occur and are useless. Any
-    // attempt to scan will fail that thread of the parse.
+    // Include input.len() because completions still need to occur after the
+    // last character is consumed, predictions can also safely occur and are
+    // useless. Any attempt to scan will fail that thread of the parse.
     for current_position in 0..=input.len() {
         if current_position >= parse_state.len() {
             // Ran out of state before running out of input, we didn't manage to
             // parse the whole string (use current_position - 1 because the
             // error actually occurred in the previous iteration of the loop,
             // safe because parse_state.len() is always >= 1)
-            return Err(input[current_position - 1..input.len()].iter().copied().collect::<String>());
+            return Err(input[current_position - 1..input.len()]
+                .iter()
+                .copied()
+                .collect::<String>());
         }
 
         // The algorithm requires simultaneous write access to the last state
@@ -83,14 +86,10 @@ fn build_parse_state<'a, 'b>(
             // only generate items with progress at 0 and completions generate
             // items where the symbol to the left of the progress marker is a
             // non-terminal.
-            if let Some(item) = item.parse(
-                grammar,
-                current_state,
-                prev_state,
-                &input,
-                current_position
-            ) {
-                to_add.push(item)
+            if let Some(item) =
+                item.parse(grammar, current_state, prev_state, input, current_position)
+            {
+                to_add.push(item);
             };
         }
 
@@ -106,18 +105,21 @@ fn build_parse_state<'a, 'b>(
     Ok(parse_state)
 }
 
-/// Return `true` if the input string is in the language described by
-/// `grammar`, false otherwise.
+/// Return `true` if the input string is in the language described by `grammar`,
+/// `false` otherwise.
 #[allow(clippy::missing_panics_doc)]
-pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
+pub fn recognise<S>(grammar: &Grammar, input: S) -> bool
+where
+    S: AsRef<str>,
+{
     let input = expand_input(input);
     let start_symbol = grammar.start_symbol();
 
     // Build parse state will succeed if it can produce a state set for every
     // character in the input. This doesn't necessarily mean the parse succeeded
     if let Ok(parse_state) = build_parse_state(start_symbol, grammar, &input) {
-        // The parse succeeded if there is at least one item in the last state set
-        // that ...
+        // The parse succeeded if there is at least one item in the last state
+        // set that ...
         parse_state
             .last()
             .unwrap()
@@ -138,12 +140,27 @@ pub fn recognise<S>(grammar: &Grammar, input: S) -> bool where S: AsRef<str> {
     }
 }
 
-pub fn parse<'a, S>(grammar: &'a Grammar, input: S) -> Result<impl Iterator<Item=ast::Node> + 'a, String> where S: AsRef<str> {
+/// Parse `input` according to `grammar`. If successful return an iterator of
+/// possible parse trees
+///
+/// # Errors
+/// In case of parse failure the unparsed input is returned.
+pub fn parse<S>(
+    grammar: &'_ Grammar,
+    input: S,
+) -> Result<impl Iterator<Item = ast::Node> + '_, String>
+where
+    S: AsRef<str>,
+{
     let input = expand_input(input);
     let start_symbol = grammar.start_symbol();
 
     let parse_state = build_parse_state(start_symbol, grammar, &input)?;
-    Ok(ast::Node::from_parse_state(start_symbol, parse_state, input))
+    Ok(ast::Node::from_parse_state(
+        start_symbol,
+        &parse_state,
+        input,
+    ))
 }
 
 syntax_abuse::tests! {
@@ -191,7 +208,7 @@ syntax_abuse::tests! {
 
         macro_rules! err {
             ($string: expr) => {
-                Err(&$string.chars().collect::<Vec<_>>()[..])
+                Err(String::from($string))
             }
         }
 

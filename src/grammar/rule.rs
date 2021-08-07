@@ -6,7 +6,7 @@ use super::symbol::Symbol;
 use syntax_abuse as syntax;
 
 /// [Grammar](super::Grammar) rule
-#[derive(Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Rule {
     name: String,
     body: Vec<Symbol>,
@@ -43,14 +43,12 @@ impl Rule {
             return false;
         }
 
-        self.body
-            .iter()
-            .all(|s| {
-                let name = s.rule_name().unwrap();
-                // If the rule would otherwise be nullable, recursively calling
-                // itself shouldn't prevent it from being marked
-                name == self.name || nullable_symbols.contains(name)
-            })
+        self.body.iter().all(|s| {
+            let name = s.rule_name().unwrap();
+            // If the rule would otherwise be nullable, recursively calling
+            // itself shouldn't prevent it from being marked
+            name == self.name || nullable_symbols.contains(name)
+        })
     }
 }
 
@@ -66,12 +64,6 @@ impl fmt::Display for Rule {
                 .collect::<Vec<_>>()
                 .join(" ")
         )
-    }
-}
-
-impl fmt::Debug for Rule {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self)
     }
 }
 

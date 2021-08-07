@@ -43,7 +43,7 @@ impl<'a> StateSet<'a> {
     pub(crate) fn add(&mut self, new_items: Vec<Item<'a>>) {
         for item in new_items {
             if !self.items.contains(&item) {
-                self.items.push(item)
+                self.items.push(item);
             }
         }
     }
@@ -84,7 +84,7 @@ syntax::tests! {
         let mut state = StateSet::new(Item::from_rules(vec![&RULE], 0));
         let orig_state = state.clone();
         state.add(Item::from_rules(vec![&RULE], 0));
-        assert_eq!(state, orig_state)
+        assert_eq!(state, orig_state);
     }
 
     #[test]

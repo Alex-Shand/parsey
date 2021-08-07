@@ -9,7 +9,7 @@ macro_rules! symbol {
     // but does cover all sensible ones). The output matcher contains the
     // stringified rule name.
     ($rule:ident) => {
-        vec![$crate::grammar::Symbol::Rule(String::from(
+        ::std::vec![$crate::grammar::Symbol::Rule(::std::string::String::from(
             ::std::stringify!($rule),
         ))]
     };
@@ -17,10 +17,8 @@ macro_rules! symbol {
     // to a regex character class and makes the whole thing one token tree in
     // rule!)
     ([ $str:literal ]) => {
-        vec![$crate::grammar::Symbol::OneOf(
-            $crate::NonEmptyHashSet::new(
-                $str.chars().collect::<::std::collections::HashSet<_>>()
-            ),
+        ::std::vec![$crate::grammar::Symbol::OneOf(
+            $crate::NonEmptyHashSet::new($str.chars().collect::<::std::collections::HashSet<_>>()),
         )]
     };
     // A string literal without [] is a sequence of Literal matchers (one for
@@ -28,7 +26,7 @@ macro_rules! symbol {
     ($str:literal) => {
         $str.chars()
             .map($crate::grammar::Symbol::Literal)
-            .collect::<Vec<_>>()
+            .collect::<::std::vec::Vec<_>>()
     };
 }
 
@@ -38,14 +36,14 @@ macro_rules! symbol {
 macro_rules! symbols {
     // Required because the general case that flattens a Vec<Vec<Symbol>> fails
     // to type check if the outer Vec is empty
-    () => { Vec::new() };
+    () => { ::std::vec::Vec::new() };
     ($($symbols:tt),+) => {
-        vec![
+        ::std::vec![
             // symbol! is used to parse each token tree in the body, the
-            // result is a Vec<Vec<Matcher>> which has to be flattened for
+            // result is a Vec<Vec<Symbol>> which has to be flattened for
             // Rule::new
             $($crate::symbol!($symbols)),*
-        ].into_iter().flatten().collect::<Vec<_>>()
+        ].into_iter().flatten().collect::<::std::vec::Vec<_>>()
     }
 }
 
@@ -54,13 +52,13 @@ macro_rules! symbols {
 #[doc(hidden)]
 macro_rules! rule {
     // Rule syntax is RuleName -> body
-    // The rule name is a bareword as in matcher!() above.
+    // The rule name is a bareword as in symbol!() above.
     // Conveniently (from symbol!()) all of the possible symbol syntaxes are
     // parsed as a single token tree so the rule body can be a (possibly empty)
     // list of token trees.
     ($name:ident -> $($symbols:tt)*) => {
         $crate::grammar::Rule::new(
-            String::from(::std::stringify!($name)),
+            ::std::string::String::from(::std::stringify!($name)),
             // Auxiliary macro to handle empty rules properly
             $crate::symbols!($($symbols),*)
         )
@@ -83,13 +81,14 @@ macro_rules! grammar_aux {
     ([$($rule:tt)+][$($rules:expr)*]) => {
         $crate::grammar_aux!([][$($rules)* $crate::rule!($($rule)*)]);
     };
-    // Found a ;. Assume everything preceding it (now in the accumulator) is one
-    // rule. The rule is constructed with rule! then pushed onto the rules list
+    // Found a ;. Assume everything preceding it (now in the first accumulator)
+    // is one rule. The rule is constructed with rule! then pushed onto the
+    // rules list (second accumulator)
     ([$($rule:tt)*][$($rules:expr)*] ; $($rest:tt)*) => {
         $crate::grammar_aux!([][$($rules)* $crate::rule!($($rule)*)] $($rest)*)
     };
-    // Something other than a ;. Push it onto the accumulator then recuse on the
-    // remaining input.
+    // Something other than a ;. Push it onto the first accumulator then recuse
+    // on the remaining input.
     ([$($acc:tt)*][$($rules:expr)*] $first:tt $($rest:tt)*) => {
         $crate::grammar_aux!([$($acc)* $first][$($rules)*] $($rest)*)
     };
@@ -182,10 +181,9 @@ macro_rules! grammar {
 #[cfg(test)]
 macro_rules! hashset {
     ($($e:expr),*) => {
-        vec![$($e),*].into_iter().collect::<::std::collections::HashSet<_>>()
+        ::std::vec![$($e),*].into_iter().collect::<::std::collections::HashSet<_>>()
     }
 }
-
 
 #[cfg(test)]
 macro_rules! nonempty_hashset {

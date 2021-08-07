@@ -29,11 +29,7 @@ impl<'a> Item<'a> {
     }
 
     #[cfg(test)]
-    pub(crate) fn from_parts(
-        rule: &'a Rule,
-        start: usize,
-        progress: usize
-    ) -> Self {
+    pub(crate) fn from_parts(rule: &'a Rule, start: usize, progress: usize) -> Self {
         Item {
             rule,
             start,
@@ -46,7 +42,7 @@ impl<'a> Item<'a> {
 
     /// The name of the rule this item wraps.
     pub(crate) fn rule_name(&self) -> &str {
-        &self.rule.name()
+        self.rule.name()
     }
 
     /// True if the item is complete
@@ -90,16 +86,8 @@ impl<'a> Item<'a> {
                 // the current item advanced by one place (over the
                 // terminal), this will be added to the next state set by
                 // the caller when it is created.
-                Symbol::Literal(c) => self.scan(
-                    input,
-                    current_position,
-                    |next| next == c
-                ),
-                Symbol::OneOf(cs) => self.scan(
-                    input,
-                    current_position,
-                    |next| cs.contains(next)
-                ),
+                Symbol::Literal(c) => self.scan(input, current_position, |next| next == c),
+                Symbol::OneOf(cs) => self.scan(input, current_position, |next| cs.contains(next)),
             }
         } else {
             // Completion: See below
@@ -125,11 +113,7 @@ impl<'a> Item<'a> {
     /// in that need the non-terminal produced by this rule to
     /// complete and add them to this state set advanced by one place
     /// (over the non-terminal)
-    fn complete(
-        &self,
-        current_state: &mut StateSet<'a>,
-        prev_state: &[StateSet<'a>]
-    ) {
+    fn complete(&self, current_state: &mut StateSet<'a>, prev_state: &[StateSet<'a>]) {
         // Find the state set the completed rule started in (will usually be
         // a previous state set but completions caused by matching the empty
         // string will start in the current state set)
@@ -281,7 +265,7 @@ syntax::tests! {
             ),
             None
         );
-        assert_eq!(state.items(), Item::from_rules(vec![&rule2], 0))
+        assert_eq!(state.items(), Item::from_rules(vec![&rule2], 0));
     }
 
     #[test]
@@ -301,7 +285,7 @@ syntax::tests! {
             ),
             Some(Item { rule: &rule, start: 0, progress: 1 })
         );
-        assert_eq!(state.items(), vec![])
+        assert_eq!(state.items(), vec![]);
     }
 
     #[test]
@@ -321,7 +305,7 @@ syntax::tests! {
             ),
             None
         );
-        assert_eq!(state.items(), vec![])
+        assert_eq!(state.items(), vec![]);
     }
 
     #[test]
@@ -345,6 +329,6 @@ syntax::tests! {
         assert_eq!(
             state.items(),
             vec![Item { rule: &rule, start: 0, progress: 1 }]
-        )
+        );
     }
 }

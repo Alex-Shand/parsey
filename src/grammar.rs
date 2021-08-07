@@ -1,6 +1,9 @@
-//!
+//! Grammar representation
+
 use std::collections::HashSet;
 use std::fmt;
+
+use syntax_abuse::do_while;
 
 pub use rule::Rule;
 pub use symbol::Symbol;
@@ -30,7 +33,7 @@ impl Grammar {
     }
 
     pub(crate) fn start_symbol(&self) -> &str {
-        &self.rules[0].name()
+        self.rules[0].name()
     }
 
     pub(crate) fn get_rules_by_name(&self, name: &str) -> Vec<&Rule> {
@@ -67,21 +70,17 @@ impl fmt::Display for Grammar {
 
 fn find_nullable_rules(rules: &[Rule]) -> HashSet<String> {
     let mut nullables = HashSet::new();
-    let mut count = 0;
-    for rule in rules {
-        if rule.is_nullable(&nullables) {
-            let _ = nullables.insert(rule.name().to_owned());
-        }
-    }
-
-    while count < nullables.len() {
-        count = nullables.len();
-        for rule in rules {
-            if rule.is_nullable(&nullables) {
-                let _ = nullables.insert(rule.name().to_owned());
+    let mut count;
+    do_while! {
+        do {
+            count = nullables.len();
+            for rule in rules {
+               if rule.is_nullable(&nullables) {
+                   let _ = nullables.insert(rule.name().to_owned());
+               }
             }
-        }
-    }
+        } while count < nullables.len()
+    };
 
     nullables
 }

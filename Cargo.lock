@@ -22,17 +22,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "derivative"
-version = "2.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fcc3dd5e9e9c0b295d6e1e4d811fb6f157d5ffd784b8d202fc62eac8035a770b"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "derive_deref"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -69,7 +58,6 @@ name = "parsey"
 version = "0.1.0"
 dependencies = [
  "derive_deref",
- "search",
  "syntax-abuse",
 ]
 
@@ -87,9 +75,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.27"
+version = "1.0.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0d8caf72986c1a598726adc988bb5984792ef84f5ee5aa50209145ee8077038"
+checksum = "5c7ed8b8c7b886ea3ed7dde405212185f423ab44682667c8c6dd14aa1d9f6612"
 dependencies = [
  "unicode-xid",
 ]
@@ -104,18 +92,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "search"
-version = "0.1.0"
-dependencies = [
- "derivative",
- "syntax-abuse",
-]
-
-[[package]]
 name = "syn"
-version = "1.0.73"
+version = "1.0.74"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f71489ff30030d2ae598524f61326b902466f72a0fb1a8564c001cc63425bcc7"
+checksum = "1873d832550d4588c3dbc20f01361ab00bfe741048f71e3fecf145a7cc18b29c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -125,7 +105,7 @@ dependencies = [
 [[package]]
 name = "syntax-abuse"
 version = "0.1.0"
-source = "git+https://github.com/Alex-Shand/syntax-abuse#dde75163a1d2f37f2f84f40380b501df97c40166"
+source = "git+https://github.com/Alex-Shand/syntax-abuse#d68bbabe644712ac77b55e82524228a2a221f733"
 dependencies = [
  "lazy_static",
  "pretty_assertions",

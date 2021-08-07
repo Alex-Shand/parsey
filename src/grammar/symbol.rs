@@ -3,7 +3,7 @@ use std::fmt;
 use crate::NonEmptyHashSet;
 
 /// Valid symbols for a [Rule](super::Rule) body
-#[derive(PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Symbol {
     /// Succeeds if the [Rule](super::Rule) with the specified name succeeds
     Rule(String),
@@ -22,7 +22,7 @@ impl Symbol {
 
     pub(crate) fn rule_name(&self) -> Option<&str> {
         match self {
-            Symbol::Rule(name) => Some(&name),
+            Symbol::Rule(name) => Some(name),
             Symbol::Literal(_) | Symbol::OneOf(_) => None,
         }
     }
@@ -39,12 +39,6 @@ impl fmt::Display for Symbol {
                 write!(f, "[{}]", chars.into_iter().collect::<String>())
             }
         }
-    }
-}
-
-impl fmt::Debug for Symbol {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self)
     }
 }
 
