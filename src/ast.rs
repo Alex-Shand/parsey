@@ -9,7 +9,7 @@ use crate::state::StateSet;
 use crate::utils::Uncertain;
 
 /// A parse tree node
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum Node {
     /// An internal tree node, created from a grammar rule
     Internal {

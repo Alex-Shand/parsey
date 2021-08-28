@@ -22,6 +22,7 @@ use state::{Item, StateSet};
 mod macros;
 
 pub mod ast;
+use ast::Node;
 pub mod grammar;
 
 mod state;
@@ -148,7 +149,7 @@ where
 pub fn parse<S>(
     grammar: &'_ Grammar,
     input: S,
-) -> Result<impl Iterator<Item = ast::Node> + '_, String>
+) -> Result<impl Iterator<Item = Node> + '_, String>
 where
     S: AsRef<str>,
 {
@@ -156,7 +157,7 @@ where
     let start_symbol = grammar.start_symbol();
 
     let parse_state = build_parse_state(start_symbol, grammar, &input)?;
-    Ok(ast::Node::from_parse_state(
+    Ok(Node::from_parse_state(
         start_symbol,
         &parse_state,
         input,
@@ -378,6 +379,65 @@ syntax_abuse::tests! {
             almost_empty,
             recognise(&ALMOST_EMPTY, "Rule"),
             true
+        }
+    }
+
+    tests! {
+        parser:
+
+        fn force(result: Result<impl Iterator<Item=Node>, String>) -> Result<Vec<Node>, String> {
+            let nodes = result?;
+            Ok(nodes.collect::<Vec<_>>())
+        }
+
+        testcase! {
+            arith_success,
+            force(parse(&ARITH, "1+2")),
+            Ok(vec![
+                Node::Internal {
+                    name: String::from("Sum"),
+                    children: vec![
+                        Node::Internal {
+                            name: String::from("Sum"),
+                            children: vec![
+                                Node::Internal {
+                                    name: String::from("Product"),
+                                    children: vec![
+                                        Node::Internal {
+                                            name: String::from("Factor"),
+                                            children: vec![
+                                                Node::Internal {
+                                                    name: String::from("Number"),
+                                                    children: vec![
+                                                        Node::Leaf('1')
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        Node::Leaf('+'),
+                        Node::Internal {
+                            name: String::from("Product"),
+                            children: vec![
+                                Node::Internal {
+                                    name: String::from("Factor"),
+                                    children: vec![
+                                        Node::Internal {
+                                            name: String::from("Number"),
+                                            children: vec![
+                                                Node::Leaf('2')
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ])
         }
     }
 }
