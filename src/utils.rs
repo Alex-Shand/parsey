@@ -45,10 +45,10 @@ impl Sub for Uncertain {
             },
             Uncertain::Unknown(a) => {
                 let b = match rhs {
-                    Uncertain::Known(b) | Uncertain::Unknown(b) => b
+                    Uncertain::Known(b) | Uncertain::Unknown(b) => b,
                 };
                 Uncertain::Unknown(a - b)
-            },
+            }
         }
     }
 }

@@ -16,7 +16,7 @@ pub enum Node {
         /// The name of the node
         name: String,
         /// Child nodes
-        children: Vec<Node>
+        children: Vec<Node>,
     },
     /// A leaf node, created from a terminal (Literal or OneOf)
     Leaf(char),
@@ -47,8 +47,7 @@ impl Node {
             Node::Leaf(_) => 1,
             // The length of an internal node is the sum of the length of its
             // children
-            Node::Internal { name: _, children } =>
-                children.iter().map(Node::len).sum(),
+            Node::Internal { name: _, children } => children.iter().map(Node::len).sum(),
         }
     }
 }

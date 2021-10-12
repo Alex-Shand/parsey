@@ -15,6 +15,9 @@
 //#![deny(dead_code)]
 #![warn(clippy::pedantic)]
 
+pub use utils::NonEmptyHashSet;
+
+use ast::Node;
 use grammar::Grammar;
 use state::{Item, StateSet};
 
@@ -22,13 +25,11 @@ use state::{Item, StateSet};
 mod macros;
 
 pub mod ast;
-use ast::Node;
 pub mod grammar;
+pub mod tokenizer;
 
 mod state;
 mod utils;
-
-pub use utils::NonEmptyHashSet;
 
 fn expand_input<S>(input: S) -> Vec<char>
 where
@@ -146,10 +147,7 @@ where
 ///
 /// # Errors
 /// In case of parse failure the unparsed input is returned.
-pub fn parse<S>(
-    grammar: &'_ Grammar,
-    input: S,
-) -> Result<impl Iterator<Item = Node> + '_, String>
+pub fn parse<S>(grammar: &'_ Grammar, input: S) -> Result<impl Iterator<Item = Node> + '_, String>
 where
     S: AsRef<str>,
 {
@@ -157,11 +155,7 @@ where
     let start_symbol = grammar.start_symbol();
 
     let parse_state = build_parse_state(start_symbol, grammar, &input)?;
-    Ok(Node::from_parse_state(
-        start_symbol,
-        &parse_state,
-        input,
-    ))
+    Ok(Node::from_parse_state(start_symbol, &parse_state, input))
 }
 
 syntax_abuse::tests! {
