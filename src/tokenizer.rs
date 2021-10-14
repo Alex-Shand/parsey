@@ -1,258 +1,157 @@
-//! Tokenizer definitions
+//! Tokenizer
 
-use std::collections::HashSet;
-use crate::utils::NonEmptyHashSet;
+pub use span::Span;
+pub use builtins::{
+    Token,
+    literal,
+    oneof,
+    eat
+};
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub struct Span {
+mod span;
+mod builtins;
+
+type Tokens<T> = Vec<TokenAndSpan<T>>;
+type Result<T> = std::result::Result<Tokens<T>, (Tokens<T>, String)>;
+
+/// The token and source span information
+#[derive(Debug, Clone, PartialEq)]
+pub struct TokenAndSpan<T> {
+    /// The token
+    pub token: T,
+    /// The span
+    pub span: Span,
+}
+
+/// Tokenization States
+#[derive(Debug, Copy, Clone)]
+pub enum State {
+    /// Tokenizer is waiting for more input
+    Pending,
+    /// Tokenizer is ready to produce a token
+    Completed,
+    /// Tokenizer has failed
+    Failed,
+}
+
+/// Trait for custom Tokenizers
+pub trait Tokenizer {
+    /// Token type
+    type Token;
+
+    /// Reset the tokenizer
+    ///
+    /// This will be called before tokenization starts and after each call to
+    /// `make_token`
+    fn reset(&mut self);
+
+    /// Send a character to the tokenizer
+    ///
+    /// The tokenizer only needs to provide a state transition and doesn't have
+    /// to store the character. Once the tokenizer completes it will be passed
+    /// all of the characters again in `make_token` once `feed` returns
+    /// `Completed`
+    fn feed(&mut self, c: char) -> State;
+
+    /// Allocate a token, will only be called once `feed` returns `Completed`
+    ///
+    /// May return `None` to avoid producing a token, in this case the input is
+    /// still consumed
+    fn make_token(&self, data: &[char]) -> Option<Self::Token>;
+}
+
+struct TokenizationState<T: Tokenizer> {
+    tokenizer: T,
+    chars: Vec<char>,
+    progress: usize,
+    token_start: usize,
     start_line: usize,
     end_line: usize,
     start_char: usize,
     end_char: usize,
+    last_result: State,
 }
 
-#[cfg(test)]
-impl Span {
-    fn new(start_line: usize, end_line: usize, start_char: usize, end_char: usize) -> Self {
-        Span {
-            start_line,
-            end_line,
-            start_char,
-            end_char,
-        }
-    }
-}
+impl<T: Tokenizer> TokenizationState<T> {
+    fn tokenize(mut self) -> Result<T::Token> {
+        self.tokenizer.reset();
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct TokenAndSpan<T> {
-    token: T,
-    span: Span,
-}
+        let mut result: Tokens<T::Token> = Vec::new();
+        while self.progress != self.chars.len() {
+            let c = self.chars[self.progress];
+            self.last_result = self.tokenizer.feed(c);
+            match self.last_result {
+                State::Pending => self.advance(c),
+                State::Completed => {
+                    if let Some(token) = self.complete() {
+                        result.push(token);
+                    }
 
-#[derive(Debug, Copy, Clone)]
-enum TokenizerState {
-    Pending,
-    Completed,
-    Failed,
-}
-
-trait Tokenizer {
-    type Token;
-
-    fn reset(&mut self);
-    fn feed(&mut self, c: char) -> TokenizerState;
-    fn make_token(&self, data: &[char]) -> Option<Self::Token>;
-
-    fn complete(&mut self, data: &[char], span: Span) -> Option<TokenAndSpan<Self::Token>> {
-        let token = self.make_token(data);
-        self.reset();
-        Some(TokenAndSpan { token: token?, span })
-    }
-}
-
-fn tokenize<T, S: AsRef<str>>(
-    input: S,
-    mut tokenizer: impl Tokenizer<Token = T>,
-) -> Result<Vec<TokenAndSpan<T>>, (Vec<TokenAndSpan<T>>, String)> {
-    fn advance(c: char, end_line: &mut usize, end_char: &mut usize) {
-        if c == '\n' {
-            *end_line += 1;
-            *end_char = 0;
-        } else {
-            *end_char += 1;
-        }
-    }
-
-    fn make_error<T>(result: Vec<TokenAndSpan<T>>, chars: &[char], token_start: usize) -> Result<Vec<TokenAndSpan<T>>, (Vec<TokenAndSpan<T>>, String)> {
-        Err((result, chars[token_start..].iter().collect()))
-    }
-
-    let mut chars = input.as_ref().chars().collect::<Vec<_>>();
-    tokenizer.reset();
-
-    let mut progress = 0;
-    let mut token_start = 0;
-
-    let mut start_line = 0;
-    let mut end_line = 0;
-    let mut start_char = 0;
-    let mut end_char = 0;
-
-    let mut result: Vec<TokenAndSpan<T>> = Vec::new();
-    let mut last_result = TokenizerState::Pending;
-    while progress != chars.len() {
-        let c = chars[progress];
-        last_result = tokenizer.feed(c);
-        match last_result {
-            TokenizerState::Pending => advance(c, &mut end_line, &mut end_char),
-            TokenizerState::Completed => {
-                if let Some(token) = tokenizer.complete(
-                    &chars[token_start..progress + 1],
-                    Span {
-                        start_line,
-                        end_line,
-                        start_char,
-                        end_char,
-                    },
-                ) {
-                    result.push(token)
+                    self.advance(c);
+                    self.token_start = self.progress + 1;
+                    self.start_line = self.end_line;
+                    self.start_char = self.end_char;
                 }
-
-                advance(c, &mut end_line, &mut end_char);
-                token_start = progress + 1;
-                start_line = end_line;
-                start_char = end_char;
+                State::Failed => return self.make_error(result),
             }
-            TokenizerState::Failed => return make_error(result, &chars, token_start)
+            self.progress += 1;
         }
-        progress += 1;
+
+        match self.last_result {
+            State::Completed => Ok(result),
+            State::Pending => self.make_error(result),
+            State::Failed => unreachable!(),
+        }
     }
 
-    match last_result {
-        TokenizerState::Completed => Ok(result),
-        TokenizerState::Pending => make_error(result, &chars, token_start),
-        TokenizerState::Failed => unreachable!()
-    }
-}
-
-trait StateMachine {
-    fn reset(&mut self);
-    fn feed(&mut self, c: char) -> TokenizerState;
-}
-
-impl StateMachine for () {
-    fn reset(&mut self) {
-        panic!("Stub");
+    fn advance(&mut self, c: char) {
+        if c == '\n' {
+            self.end_line += 1;
+            self.end_char = 0;
+        } else {
+            self.end_char += 1;
+        }
     }
 
-    fn feed(&mut self, c: char) -> TokenizerState {
-        panic!("Stub");
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-struct Token {
-    tag: &'static str,
-    contents: String,
-}
-
-struct BasicTokenizer<S: StateMachine> {
-    tag: &'static str,
-    state: S,
-}
-
-impl<S: StateMachine> Tokenizer for BasicTokenizer<S> {
-    type Token = Token;
-
-    fn reset(&mut self) {
-        self.state.reset()
+    fn make_error(self, result: Tokens<T::Token>) -> Result<T::Token> {
+        Err((result, self.chars[self.token_start..].iter().collect()))
     }
 
-    fn feed(&mut self, c: char) -> TokenizerState {
-        self.state.feed(c)
-    }
-
-    fn make_token(&self, data: &[char]) -> Option<Self::Token> {
-        Some(Token {
-            tag: self.tag,
-            contents: data.iter().collect(),
+    fn complete(&mut self) -> Option<TokenAndSpan<T::Token>> {
+        let token = self.tokenizer.make_token(&self.chars[self.token_start..=self.progress]);
+        self.tokenizer.reset();
+        Some(TokenAndSpan {
+            token: token?,
+            span: Span::new(
+                self.start_line,
+                self.end_line,
+                self.start_char,
+                self.end_char,
+            )
         })
     }
 }
 
-struct Literal {
-    progress: usize,
-    data: Vec<char>,
-}
-
-impl Literal {
-    fn new<S: AsRef<str>>(lit: S) -> Self {
-        Literal {
-            progress: 0,
-            data: lit.as_ref().chars().collect(),
-        }
-    }
-}
-
-impl StateMachine for Literal {
-    fn reset(&mut self) {
-        self.progress = 0;
-    }
-
-    fn feed(&mut self, c: char) -> TokenizerState {
-        if self.progress == self.data.len() {
-            return TokenizerState::Failed;
-        }
-        if c != self.data[self.progress] {
-            return TokenizerState::Failed;
-        }
-        self.progress += 1;
-        if self.progress == self.data.len() {
-            TokenizerState::Completed
-        } else {
-            TokenizerState::Pending
-        }
-    }
-}
-
-fn literal<S: AsRef<str>>(tag: &'static str, lit: S) -> impl Tokenizer<Token = Token> {
-    BasicTokenizer {
-        tag,
-        state: Literal::new(lit),
-    }
-}
-
-struct OneOf {
-    chars: NonEmptyHashSet<char>,
-    done: bool
-}
-
-impl OneOf {
-    fn new(chars: HashSet<char>) -> Self {
-        OneOf { chars: NonEmptyHashSet::new(chars), done: false }
-    }
-}
-
-impl StateMachine for OneOf {
-    fn reset(&mut self) {
-        self.done = false;
-    }
-
-    fn feed(&mut self, c: char) -> TokenizerState {
-        if self.done || !self.chars.contains(&c) {
-            return TokenizerState::Failed;
-        }
-        self.done = true;
-        TokenizerState::Completed
-    }
-}
-
-fn oneof(tag: &'static str, chars: HashSet<char>) -> impl Tokenizer<Token = Token> {
-    BasicTokenizer { tag, state: OneOf::new(chars) }
-}
-
-struct Eater<T: Tokenizer> {
-    tokenizer: T
-}
-
-impl<T: Tokenizer> Tokenizer for Eater<T> {
-    type Token = T::Token;
-
-    fn reset(&mut self) {
-        self.tokenizer.reset();
-    }
-
-    fn feed(&mut self, c: char) -> TokenizerState {
-        self.tokenizer.feed(c)
-    }
-
-    fn make_token(&self, data: &[char]) -> Option<Self::Token> {
-        None
-    }
-}
-
-fn eat<T>(tokenizer: impl Tokenizer<Token = T>) -> impl Tokenizer<Token = T> {
-    Eater { tokenizer }
+/// Tokenize a string
+///
+/// # Errors
+/// If the tokenizer fails or consumes the whole input without completing it
+/// returns all of the tokens found and the remaining unconsumed input if any
+pub fn tokenize<T, S: AsRef<str>>(
+    input: S,
+    tokenizer: impl Tokenizer<Token = T>,
+) -> Result<T> {
+    TokenizationState {
+        tokenizer,
+        chars: input.as_ref().chars().collect(),
+        progress: 0,
+        token_start: 0,
+        start_line: 0,
+        end_line: 0,
+        start_char: 0,
+        end_char: 0,
+        last_result: State::Pending
+    }.tokenize()
 }
 
 // fn repeated<T, D>(token: impl Tokenizer<Token = T>, delimeter: Option<impl Tokenizer<Token = D>>, min: usize, max: usize) -> impl Tokenizer<Token = T> {
@@ -266,196 +165,3 @@ fn eat<T>(tokenizer: impl Tokenizer<Token = T>) -> impl Tokenizer<Token = T> {
 // fn longestof<T>(tokenizers: Vec<Box<dyn Tokenizer<Token = T>>>) ->impl Tokenizer<Token = T> {
 //     todo!()
 // }
-
-syntax_abuse::tests! {
-    tests! {
-        literal:
-
-        testcase! {
-            simple,
-            tokenize(
-                "test",
-                literal("simple", "test")
-            ),
-            Ok(
-                vec![
-                    TokenAndSpan {
-                        token: Token {
-                            tag: "simple",
-                            contents: String::from("test")
-                        },
-                        span: Span::new(0, 0, 0, 3)
-                    }
-                ]
-            )
-        }
-
-        testcase! {
-            newline,
-            tokenize(
-                "First Line\nSecond Line",
-                literal("newline", "First Line\nSecond Line")
-            ),
-            Ok(
-                vec![
-                    TokenAndSpan {
-                        token: Token {
-                            tag: "newline",
-                            contents: String::from("First Line\nSecond Line")
-                        },
-                        span: Span::new(0, 1, 0, 10)
-                    }
-                ]
-            )
-        }
-
-        testcase! {
-            extra,
-            tokenize(
-                "Text More Text",
-                literal("extra", "Text")
-            ),
-            Err((
-                vec![
-                    TokenAndSpan {
-                        token: Token {
-                            tag: "extra",
-                            contents: String::from("Text")
-                        },
-                        span: Span::new(0, 0, 0, 3)
-                    }
-                ],
-                String::from(" More Text")
-            ))
-        }
-
-        testcase! {
-            not_enough,
-            tokenize(
-                "1234",
-                literal("not-enough", "12345"),
-            ),
-            Err((
-                vec![],
-                String::from("1234")
-            ))
-        }
-
-        testcase! {
-            failure,
-            tokenize(
-                "Text",
-                literal("failure", "Test")
-            ),
-            Err((
-                vec![],
-                String::from("Text")
-            ))
-        }
-    }
-
-    tests! {
-        oneof:
-
-        testdata! {
-            SIMPLE: ??? = oneof("simple", hashset!['A', 'B']);
-        }
-
-        testcase! {
-            simple1,
-            tokenize("A", SIMPLE!()),
-            Ok(
-                vec![
-                    TokenAndSpan {
-                        token: Token {
-                            tag: "simple",
-                            contents: String::from("A")
-                        },
-                        span: Span::new(0, 0, 0, 0)
-                    }
-                ]
-            )
-        }
-
-        testcase! {
-            simple2,
-            tokenize("B", SIMPLE!()),
-            Ok(
-                vec![
-                    TokenAndSpan {
-                        token: Token {
-                            tag: "simple",
-                            contents: String::from("B")
-                        },
-                        span: Span::new(0, 0, 0, 0)
-                    }
-                ]
-            )
-        }
-
-        testcase! {
-            extra,
-            tokenize("ABC", SIMPLE!()),
-            Err((
-                vec![
-                    TokenAndSpan {
-                        token: Token {
-                            tag: "simple",
-                            contents: String::from("A")
-                        },
-                        span: Span::new(0, 0, 0, 0)
-                    },
-                    TokenAndSpan {
-                        token: Token {
-                            tag: "simple",
-                            contents: String::from("B")
-                        },
-                        span: Span::new(0, 0, 1, 1)
-                    }
-                ],
-                String::from("C")
-            ))
-        }
-
-        testcase! {
-            failure,
-            tokenize("C", SIMPLE!()),
-            Err((
-                vec![],
-                String::from("C")
-            ))
-        }
-    }
-
-    tests! {
-        eat:
-
-        testdata! {
-            EATER: ??? = eat(literal("eaten", "test"));
-        }
-
-        testcase! {
-            simple,
-            tokenize("test", EATER!()),
-            Ok(vec![])
-        }
-
-        testcase! {
-            extra,
-            tokenize("test extra", EATER!()),
-            Err((
-                vec![],
-                String::from(" extra")
-            ))
-        }
-
-        testcase! {
-            failure,
-            tokenize("text", EATER!()),
-            Err((
-                vec![],
-                String::from("text")
-            ))
-        }
-    }
-}
