@@ -1,19 +1,10 @@
-use super::{ Tokenizer, State, Token, BasicTokenizer, StateMachine };
+use super::{BasicTokenizer, State, StateMachine, Token, Tokenizer};
 use crate::utils::NonEmptyHashSet;
 use std::collections::HashSet;
 
 struct OneOf {
     chars: NonEmptyHashSet<char>,
     done: bool,
-}
-
-impl OneOf {
-    fn new(chars: HashSet<char>) -> Self {
-        OneOf {
-            chars: NonEmptyHashSet::new(chars),
-            done: false,
-        }
-    }
 }
 
 impl StateMachine for OneOf {
@@ -36,7 +27,10 @@ impl StateMachine for OneOf {
 pub fn oneof(tag: &'static str, chars: HashSet<char>) -> impl Tokenizer<Token = Token> {
     BasicTokenizer {
         tag,
-        state: OneOf::new(chars),
+        state: OneOf {
+            chars: NonEmptyHashSet::new(chars),
+            done: false,
+        },
     }
 }
 

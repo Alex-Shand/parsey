@@ -1,35 +1,20 @@
-use super::{ Tokenizer, State };
-
-struct Eater<T: Tokenizer> {
-    tokenizer: T,
-}
-
-impl<T: Tokenizer> Tokenizer for Eater<T> {
-    type Token = T::Token;
-
-    fn reset(&mut self) {
-        self.tokenizer.reset();
-    }
-
-    fn feed(&mut self, c: char) -> State {
-        self.tokenizer.feed(c)
-    }
-
-    fn make_token(&self, _data: &[char]) -> Option<Self::Token> {
-        None
-    }
-}
+use super::{map::map, Tokenizer};
 
 /// Run a sub-tokenizer but don't produce a token
-pub fn eat<T>(tokenizer: impl Tokenizer<Token = T>) -> impl Tokenizer<Token = T> {
-    Eater { tokenizer }
+///
+/// Can also be used to coerce the token type of sub-tokenizers in aggregate
+/// tokenizers such as `chain`. As `make_token` will never be called for
+/// sub-tokenizers anyway it doesn't matter that `eat` doesn't ever produce a
+/// token
+pub fn eat<S, T: Tokenizer>(tokenizer: T) -> impl Tokenizer<Token = S> {
+    map(tokenizer, |_| None)
 }
 
 syntax_abuse::tests! {
     use crate::tokenizer::{ tokenize, literal };
 
     testdata! {
-        EATER: ??? = eat(literal("eaten", "test"));
+        EATER: ??? = eat::<(), _>(literal("eaten", "test"));
     }
 
     testcase! {

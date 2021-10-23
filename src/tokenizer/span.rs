@@ -12,7 +12,12 @@ pub struct Span {
 }
 
 impl Span {
-    pub(super) fn new(start_line: usize, end_line: usize, start_char: usize, end_char: usize) -> Self {
+    pub(super) fn new(
+        start_line: usize,
+        end_line: usize,
+        start_char: usize,
+        end_char: usize,
+    ) -> Self {
         Span {
             start_line,
             end_line,

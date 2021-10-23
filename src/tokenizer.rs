@@ -1,15 +1,10 @@
 //! Tokenizer
 
+pub use builtins::{chain, eat, firstof, literal, map, oneof, Token};
 pub use span::Span;
-pub use builtins::{
-    Token,
-    literal,
-    oneof,
-    eat
-};
 
-mod span;
 mod builtins;
+mod span;
 
 type Tokens<T> = Vec<TokenAndSpan<T>>;
 type Result<T> = std::result::Result<Tokens<T>, (Tokens<T>, String)>;
@@ -118,7 +113,9 @@ impl<T: Tokenizer> TokenizationState<T> {
     }
 
     fn complete(&mut self) -> Option<TokenAndSpan<T::Token>> {
-        let token = self.tokenizer.make_token(&self.chars[self.token_start..=self.progress]);
+        let token = self
+            .tokenizer
+            .make_token(&self.chars[self.token_start..=self.progress]);
         self.tokenizer.reset();
         Some(TokenAndSpan {
             token: token?,
@@ -127,7 +124,7 @@ impl<T: Tokenizer> TokenizationState<T> {
                 self.end_line,
                 self.start_char,
                 self.end_char,
-            )
+            ),
         })
     }
 }
@@ -137,10 +134,7 @@ impl<T: Tokenizer> TokenizationState<T> {
 /// # Errors
 /// If the tokenizer fails or consumes the whole input without completing it
 /// returns all of the tokens found and the remaining unconsumed input if any
-pub fn tokenize<T, S: AsRef<str>>(
-    input: S,
-    tokenizer: impl Tokenizer<Token = T>,
-) -> Result<T> {
+pub fn tokenize<T, S: AsRef<str>>(input: S, tokenizer: impl Tokenizer<Token = T>) -> Result<T> {
     TokenizationState {
         tokenizer,
         chars: input.as_ref().chars().collect(),
@@ -150,8 +144,9 @@ pub fn tokenize<T, S: AsRef<str>>(
         end_line: 0,
         start_char: 0,
         end_char: 0,
-        last_result: State::Pending
-    }.tokenize()
+        last_result: State::Pending,
+    }
+    .tokenize()
 }
 
 // fn repeated<T, D>(token: impl Tokenizer<Token = T>, delimeter: Option<impl Tokenizer<Token = D>>, min: usize, max: usize) -> impl Tokenizer<Token = T> {

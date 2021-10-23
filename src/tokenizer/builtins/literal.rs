@@ -1,17 +1,8 @@
-use super::{ Tokenizer, State, Token, BasicTokenizer, StateMachine };
+use super::{BasicTokenizer, State, StateMachine, Token, Tokenizer};
 
 struct Literal {
     progress: usize,
     data: Vec<char>,
-}
-
-impl Literal {
-    fn new<S: AsRef<str>>(lit: S) -> Self {
-        Literal {
-            progress: 0,
-            data: lit.as_ref().chars().collect(),
-        }
-    }
 }
 
 impl StateMachine for Literal {
@@ -39,7 +30,10 @@ impl StateMachine for Literal {
 pub fn literal<S: AsRef<str>>(tag: &'static str, lit: S) -> impl Tokenizer<Token = Token> {
     BasicTokenizer {
         tag,
-        state: Literal::new(lit),
+        state: Literal {
+            progress: 0,
+            data: lit.as_ref().chars().collect(),
+        },
     }
 }
 

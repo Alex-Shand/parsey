@@ -1,15 +1,24 @@
-use super::{ Tokenizer, State };
+use super::{State, Tokenizer};
 
+#[allow(unreachable_pub)]
+pub use chain::chain;
+#[allow(unreachable_pub)]
+pub use eater::eat;
+#[allow(unreachable_pub)]
+pub use firstof::firstof;
 #[allow(unreachable_pub)]
 pub use literal::literal;
 #[allow(unreachable_pub)]
-pub use oneof::oneof;
+pub use map::map;
 #[allow(unreachable_pub)]
-pub use eater::eat;
+pub use oneof::oneof;
 
-mod literal;
-mod oneof;
+mod chain;
 mod eater;
+mod firstof;
+mod literal;
+mod map;
+mod oneof;
 
 /// Default token type for builtin tokenizers
 #[derive(Debug, Clone, PartialEq)]

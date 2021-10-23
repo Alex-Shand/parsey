@@ -189,3 +189,40 @@ macro_rules! hashset {
 macro_rules! nonempty_hashset {
     ($($e:expr),*) => { $crate::NonEmptyHashSet::new(hashset![$($e),*]) }
 }
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! tokenizers {
+    ($($tok:expr),*) => {
+        vec![$(::std::boxed::Box::new($tok)),*]
+    }
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! tokenizers_untyped {
+    ($($tok:expr),*) =>  {
+        tokenizers![$($crate::tokenizer::eat::<(), _>($tok)),*]
+    }
+}
+
+/// Run several tokenizers in sequence then collect all of the characters into a
+/// single token
+#[macro_export]
+macro_rules! chain {
+    ($tag:literal $(, $tok:expr)* $(,)?) => {
+        $crate::tokenizer::chain($tag, tokenizers_untyped![$($tok),*])
+    }
+}
+
+/// Tokenize the using the first of a set of tokenizers to match
+///
+/// The first character of the input is fed to each tokenizer in turn, the first
+/// one to return `!= State::Failed` is used to tokenize the rest of the
+/// input. If it fails any remaining tokenizers aren't tried.
+#[macro_export]
+macro_rules! firstof {
+    ($($tok:expr),* $(,)?) => {
+        $crate::tokenizer::firstof(tokenizers![$($tok),*])
+    }
+}
