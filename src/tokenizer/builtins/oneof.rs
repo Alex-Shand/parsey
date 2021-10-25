@@ -8,8 +8,9 @@ struct OneOf {
 }
 
 impl StateMachine for OneOf {
-    fn reset(&mut self) {
+    fn reset(&mut self) -> bool {
         self.done = false;
+        false
     }
 
     fn feed(&mut self, c: char) -> State {

@@ -226,3 +226,15 @@ macro_rules! firstof {
         $crate::tokenizer::firstof(tokenizers![$($tok),*])
     }
 }
+
+/// Run several tokenizers in parallel, produces the token from the one that
+/// runs for longest
+///
+/// If multiple tokenizers tie for longest match the one listed first in the
+/// argument list wins. If all tokenizers fail this also fails.
+#[macro_export]
+macro_rules! longestof {
+    ($($tok:expr),* $(,)?) => {
+        $crate::tokenizer::longestof(tokenizers![$($tok),*])
+    }
+}

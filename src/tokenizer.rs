@@ -1,6 +1,8 @@
 //! Tokenizer
+use std::rc::Rc;
+use std::cell::RefCell;
 
-pub use builtins::{chain, eat, firstof, literal, map, oneof, Token};
+pub use builtins::{chain, eat, firstof, literal, longestof, map, oneof, Token};
 pub use span::Span;
 
 mod builtins;
@@ -38,7 +40,7 @@ pub trait Tokenizer {
     ///
     /// This will be called before tokenization starts and after each call to
     /// `make_token`
-    fn reset(&mut self);
+    fn reset(&mut self) -> bool;
 
     /// Send a character to the tokenizer
     ///
@@ -56,76 +58,119 @@ pub trait Tokenizer {
 }
 
 struct TokenizationState<T: Tokenizer> {
-    tokenizer: T,
-    chars: Vec<char>,
+    tokenizer: Rc<RefCell<T>>,
+    chars: Rc<Vec<char>>,
     progress: usize,
     token_start: usize,
     start_line: usize,
     end_line: usize,
     start_char: usize,
     end_char: usize,
-    last_result: State,
+    last_result: State
+}
+
+impl<T: Tokenizer> Clone for TokenizationState<T> {
+    fn clone(&self) -> Self {
+        TokenizationState {
+            tokenizer: self.tokenizer.clone(),
+            chars: self.chars.clone(),
+            progress: self.progress,
+            token_start: self.token_start,
+            start_line: self.start_line,
+            end_line: self.end_line,
+            start_char: self.start_char,
+            end_char: self.end_char,
+            last_result: self.last_result
+        }
+    }
 }
 
 impl<T: Tokenizer> TokenizationState<T> {
     fn tokenize(mut self) -> Result<T::Token> {
-        self.tokenizer.reset();
+        let mut result = Vec::new();
+        let mut candidate = None;
 
-        let mut result: Tokens<T::Token> = Vec::new();
-        while self.progress != self.chars.len() {
-            let c = self.chars[self.progress];
-            self.last_result = self.tokenizer.feed(c);
+        while !self.eof() {
+            self.last_result = self.tokenizer.borrow_mut().feed(self.chars[self.progress]);
             match self.last_result {
-                State::Pending => self.advance(c),
+                State::Pending => self.advance(),
                 State::Completed => {
-                    if let Some(token) = self.complete() {
-                        result.push(token);
-                    }
-
-                    self.advance(c);
-                    self.token_start = self.progress + 1;
-                    self.start_line = self.end_line;
-                    self.start_char = self.end_char;
+                    println!("Completed");
+                    self.advance();
+                    candidate = Some(self.clone());
                 }
-                State::Failed => return self.make_error(result),
+                State::Failed => {
+                    if candidate.is_some() {
+                        self = candidate.take().unwrap();
+                        println!("Next Char: {} ({})", self.chars[self.progress], self.progress);
+                        self.complete(&mut result);
+                        println!("Next Char: {} ({})", self.chars[self.progress], self.progress);
+                    } else {
+                        return self.make_error(result);
+                    }
+                }
             }
-            self.progress += 1;
+        }
+
+        if let Some(candidate) = candidate {
+            self = candidate;
+            self.complete(&mut result);
         }
 
         match self.last_result {
-            State::Completed => Ok(result),
+            State::Completed => if self.eof() {
+                Ok(result)
+            } else {
+                self.make_error(result)
+            }
             State::Pending => self.make_error(result),
             State::Failed => unreachable!(),
         }
     }
 
-    fn advance(&mut self, c: char) {
-        if c == '\n' {
+    fn advance(&mut self) {
+        if self.chars[self.progress] == '\n' {
             self.end_line += 1;
             self.end_char = 0;
         } else {
             self.end_char += 1;
         }
+        self.progress += 1;
     }
 
     fn make_error(self, result: Tokens<T::Token>) -> Result<T::Token> {
         Err((result, self.chars[self.token_start..].iter().collect()))
     }
 
-    fn complete(&mut self) -> Option<TokenAndSpan<T::Token>> {
-        let token = self
-            .tokenizer
-            .make_token(&self.chars[self.token_start..=self.progress]);
-        self.tokenizer.reset();
-        Some(TokenAndSpan {
-            token: token?,
-            span: Span::new(
-                self.start_line,
-                self.end_line,
-                self.start_char,
-                self.end_char,
-            ),
-        })
+    fn eof(&mut self) -> bool {
+        self.progress == self.chars.len()
+    }
+
+    fn complete(&mut self, result: &mut Tokens<T::Token>) {
+        if let Some(token) = self
+            .tokenizer.borrow()
+            .make_token(&self.chars[self.token_start..self.progress]) {
+                result.push(TokenAndSpan {
+                    token,
+                    span: Span::new(
+                        self.start_line,
+                        self.end_line,
+                        self.start_char,
+                        self.end_char - 1,
+                    )
+                });
+        }
+
+        let _ = self.tokenizer.borrow_mut().reset();
+
+        if !self.eof() {
+            self.advance();
+            self.progress -= 1;
+            self.end_char -= 1;
+            self.token_start = self.progress;
+            self.start_line = self.end_line;
+            self.start_char = self.end_char;
+        }
     }
 }
 
@@ -134,29 +179,22 @@ impl<T: Tokenizer> TokenizationState<T> {
 /// # Errors
 /// If the tokenizer fails or consumes the whole input without completing it
 /// returns all of the tokens found and the remaining unconsumed input if any
-pub fn tokenize<T, S: AsRef<str>>(input: S, tokenizer: impl Tokenizer<Token = T>) -> Result<T> {
+pub fn tokenize<T, S: AsRef<str>>(input: S, mut tokenizer: impl Tokenizer<Token = T>) -> Result<T> {
+    let already_completed = tokenizer.reset();
     TokenizationState {
-        tokenizer,
-        chars: input.as_ref().chars().collect(),
+        tokenizer: Rc::new(RefCell::new(tokenizer)),
+        chars: Rc::new(input.as_ref().chars().collect()),
         progress: 0,
         token_start: 0,
         start_line: 0,
         end_line: 0,
         start_char: 0,
         end_char: 0,
-        last_result: State::Pending,
+        last_result: if already_completed { State::Completed } else { State::Pending }
     }
     .tokenize()
 }
 
 // fn repeated<T, D>(token: impl Tokenizer<Token = T>, delimeter: Option<impl Tokenizer<Token = D>>, min: usize, max: usize) -> impl Tokenizer<Token = T> {
-//     todo!()
-// }
-
-// fn firstof<T>(tokenizers: Vec<Box<dyn Tokenizer<Token = T>>>) -> impl Tokenizer<Token = T> {
-//     todo!()
-// }
-
-// fn longestof<T>(tokenizers: Vec<Box<dyn Tokenizer<Token = T>>>) ->impl Tokenizer<Token = T> {
 //     todo!()
 // }

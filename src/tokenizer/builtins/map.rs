@@ -8,8 +8,8 @@ struct Mapper<S, T: Tokenizer, F: Fn(&[char]) -> Option<S>> {
 impl<S, T: Tokenizer, F: Fn(&[char]) -> Option<S>> Tokenizer for Mapper<S, T, F> {
     type Token = S;
 
-    fn reset(&mut self) {
-        self.tokenizer.reset();
+    fn reset(&mut self) -> bool {
+        self.tokenizer.reset()
     }
 
     fn feed(&mut self, c: char) -> State {

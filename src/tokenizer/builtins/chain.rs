@@ -7,13 +7,19 @@ struct Chain<T> {
 }
 
 impl<T> StateMachine for Chain<T> {
-    fn reset(&mut self) {
+    fn reset(&mut self) -> bool {
         self.failed = false;
         self.progress = 0;
+
+        let mut all_complete_early = true;
+        for tokenizer in &mut self.tokenizers {
+            all_complete_early &= tokenizer.reset();
+        }
+        all_complete_early
     }
 
     fn feed(&mut self, c: char) -> State {
-        if self.failed {
+        if self.failed || self.progress == self.tokenizers.len() {
             return State::Failed;
         }
         match self.tokenizers[self.progress].feed(c) {

@@ -9,6 +9,8 @@ pub use firstof::firstof;
 #[allow(unreachable_pub)]
 pub use literal::literal;
 #[allow(unreachable_pub)]
+pub use longestof::longestof;
+#[allow(unreachable_pub)]
 pub use map::map;
 #[allow(unreachable_pub)]
 pub use oneof::oneof;
@@ -17,6 +19,7 @@ mod chain;
 mod eater;
 mod firstof;
 mod literal;
+mod longestof;
 mod map;
 mod oneof;
 
@@ -30,7 +33,7 @@ pub struct Token {
 }
 
 trait StateMachine {
-    fn reset(&mut self);
+    fn reset(&mut self) -> bool;
     fn feed(&mut self, c: char) -> State;
 }
 
@@ -42,8 +45,8 @@ struct BasicTokenizer<S: StateMachine> {
 impl<S: StateMachine> Tokenizer for BasicTokenizer<S> {
     type Token = Token;
 
-    fn reset(&mut self) {
-        self.state.reset();
+    fn reset(&mut self) -> bool {
+        self.state.reset()
     }
 
     fn feed(&mut self, c: char) -> State {

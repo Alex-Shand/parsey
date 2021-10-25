@@ -6,8 +6,9 @@ struct Literal {
 }
 
 impl StateMachine for Literal {
-    fn reset(&mut self) {
+    fn reset(&mut self) -> bool {
         self.progress = 0;
+        self.data.is_empty()
     }
 
     fn feed(&mut self, c: char) -> State {
@@ -73,6 +74,12 @@ syntax_abuse::tests! {
                 }
             ]
         )
+    }
+
+    testcase! {
+        empty,
+        tokenize("", literal("empty", "")),
+        Ok(vec![])
     }
 
     testcase! {

@@ -8,8 +8,13 @@ struct FirstOf<T> {
 impl<T> Tokenizer for FirstOf<T> {
     type Token = T;
 
-    fn reset(&mut self) {
+    fn reset(&mut self) -> bool {
         self.chosen_tokenizer = None;
+        let mut can_complete_early = false;
+        for tokenizer in &mut self.tokenizers {
+            can_complete_early = tokenizer.reset();
+        }
+        can_complete_early
     }
 
     fn feed(&mut self, c: char) -> State {
@@ -42,8 +47,6 @@ pub fn firstof<T>(tokenizers: Vec<Box<dyn Tokenizer<Token = T>>>) -> impl Tokeni
         tokenizers,
     }
 }
-
-
 
 syntax_abuse::tests! {
     use crate::tokenizer::{literal, tokenize, Span, Token, TokenAndSpan};
