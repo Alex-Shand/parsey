@@ -79,7 +79,7 @@ syntax_abuse::tests! {
                         tag: "chain",
                         contents: String::from("ABC")
                     },
-                    span: Span::new(0, 0, 0, 2)
+                    span: Span::new(0, 0, 0, 3)
                 }
             ]
         )
@@ -98,7 +98,7 @@ syntax_abuse::tests! {
                         tag: "chain",
                         contents: String::from("AB")
                     },
-                    span: Span::new(0, 0, 0, 1)
+                    span: Span::new(0, 0, 0, 2)
                 }
             ],
             String::from("CD")

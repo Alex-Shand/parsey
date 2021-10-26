@@ -51,7 +51,7 @@ syntax_abuse::tests! {
                         tag: "simple",
                         contents: String::from("test")
                     },
-                    span: Span::new(0, 0, 0, 3)
+                    span: Span::new(0, 0, 0, 4)
                 }
             ]
         )
@@ -70,7 +70,26 @@ syntax_abuse::tests! {
                         tag: "newline",
                         contents: String::from("First Line\nSecond Line")
                     },
-                    span: Span::new(0, 1, 0, 10)
+                    span: Span::new(0, 1, 0, 11)
+                }
+            ]
+        )
+    }
+
+    testcase! {
+        newline_at_eof,
+        tokenize(
+            "Test\n",
+            literal("newline", "Test\n")
+        ),
+        Ok(
+            vec![
+                TokenAndSpan {
+                    token: Token {
+                        tag: "newline",
+                        contents: String::from("Test\n")
+                    },
+                    span: Span::new(0, 1, 0, 0)
                 }
             ]
         )
@@ -92,7 +111,7 @@ syntax_abuse::tests! {
                         tag: "extra",
                         contents: String::from("Text")
                     },
-                    span: Span::new(0, 0, 0, 3)
+                    span: Span::new(0, 0, 0, 4)
                 }
             ],
             String::from(" More Text")

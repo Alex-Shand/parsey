@@ -52,7 +52,7 @@ syntax_abuse::tests! {
                         tag: "simple",
                         contents: String::from("A")
                     },
-                    span: Span::new(0, 0, 0, 0)
+                    span: Span::new(0, 0, 0, 1)
                 }
             ]
         )
@@ -68,7 +68,7 @@ syntax_abuse::tests! {
                         tag: "simple",
                         contents: String::from("B")
                     },
-                    span: Span::new(0, 0, 0, 0)
+                    span: Span::new(0, 0, 0, 1)
                 }
             ]
         )
@@ -84,14 +84,14 @@ syntax_abuse::tests! {
                         tag: "simple",
                         contents: String::from("A")
                     },
-                    span: Span::new(0, 0, 0, 0)
+                    span: Span::new(0, 0, 0, 1)
                 },
                 TokenAndSpan {
                     token: Token {
                         tag: "simple",
                         contents: String::from("B")
                     },
-                    span: Span::new(0, 0, 1, 1)
+                    span: Span::new(0, 0, 1, 2)
                 }
             ],
             String::from("C")

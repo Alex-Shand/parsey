@@ -50,7 +50,7 @@ syntax_abuse::tests! {
             vec![
                 TokenAndSpan {
                     token: String::from("test"),
-                    span: Span::new(0, 0, 0, 3)
+                    span: Span::new(0, 0, 0, 4)
                 }
             ]
         )
@@ -63,7 +63,7 @@ syntax_abuse::tests! {
             vec![
                 TokenAndSpan {
                     token: String::from("test"),
-                    span: Span::new(0, 0, 0, 3)
+                    span: Span::new(0, 0, 0, 4)
                 }
             ],
             String::from(" extra")

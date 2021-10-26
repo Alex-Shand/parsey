@@ -3,7 +3,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 pub use builtins::{chain, eat, firstof, literal, longestof, map, oneof, Token};
-pub use span::Span;
+pub use span::{ Span, CharacterPosition };
 
 mod builtins;
 mod span;
@@ -196,10 +196,7 @@ impl<T: Tokenizer> TokenizationState<T> {
                         self.start_line,
                         self.end_line,
                         self.start_char,
-                        // By this point end_char points at the first character
-                        // not part of the token, we want the span to contain
-                        // the last character that is part of the token
-                        self.end_char - 1,
+                        self.end_char,
                     )
                 });
         }

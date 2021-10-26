@@ -1,14 +1,19 @@
+/// The position of a character in a file
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct CharacterPosition {
+    /// The zero indexed line number
+    pub row: usize,
+    /// The zero indexed column number
+    pub col: usize,
+}
+
 /// Source span of a token
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Span {
-    /// The line the token starts on
-    pub start_line: usize,
-    /// The line the token ends on
-    pub end_line: usize,
-    /// The character position on `start_line` the token starts at
-    pub start_char: usize,
-    /// The character position on `end_line` the token ends at
-    pub end_char: usize,
+    /// The location of the first character of the token
+    pub start: CharacterPosition,
+    /// The location of the first character after the token
+    pub end: CharacterPosition,
 }
 
 impl Span {
@@ -19,10 +24,14 @@ impl Span {
         end_char: usize,
     ) -> Self {
         Span {
-            start_line,
-            end_line,
-            start_char,
-            end_char,
+            start: CharacterPosition {
+                row: start_line,
+                col: start_char
+            },
+            end: CharacterPosition {
+                row: end_line,
+                col: end_char
+            }
         }
     }
 }

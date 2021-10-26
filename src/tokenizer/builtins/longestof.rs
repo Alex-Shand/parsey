@@ -84,7 +84,7 @@ syntax_abuse::tests! {
                             tag: "4",
                             contents: String::from("This is a test")
                         },
-                        span: Span::new(0, 0, 0, 13)
+                        span: Span::new(0, 0, 0, 14)
                     }
                 ]
             )
@@ -108,7 +108,7 @@ syntax_abuse::tests! {
                             tag: "1",
                             contents: String::from("This is a test")
                         },
-                        span: Span::new(0, 0, 0, 13)
+                        span: Span::new(0, 0, 0, 14)
                     }
                 ]
             )
@@ -132,7 +132,7 @@ syntax_abuse::tests! {
                             tag: "2",
                             contents: String::from("This is a test")
                         },
-                        span: Span::new(0, 0, 0, 13)
+                        span: Span::new(0, 0, 0, 14)
                     }
                 ]
             )
@@ -155,7 +155,7 @@ syntax_abuse::tests! {
                             tag: "1",
                             contents: String::from("abcd")
                         },
-                        span: Span::new(0, 0, 0, 3)
+                        span: Span::new(0, 0, 0, 4)
                     }
                 ]
             )
@@ -178,14 +178,14 @@ syntax_abuse::tests! {
                             tag: "2",
                             contents: String::from("abcd")
                         },
-                        span: Span::new(0, 0, 0, 3)
+                        span: Span::new(0, 0, 0, 4)
                     },
                     TokenAndSpan {
                         token: Token {
                             tag: "2",
                             contents: String::from("abcd")
                         },
-                        span: Span::new(0, 0, 4, 7)
+                        span: Span::new(0, 0, 4, 8)
                     }
                 ]
             )
@@ -212,7 +212,7 @@ syntax_abuse::tests! {
                             tag: "1",
                             contents: String::from("abc")
                         },
-                        span: Span::new(0, 0, 0, 2)
+                        span: Span::new(0, 0, 0, 3)
                     }
                 ],
                 String::from("d")
@@ -236,7 +236,7 @@ syntax_abuse::tests! {
                             tag: "3",
                             contents: String::from("abc")
                         },
-                        span: Span::new(0, 0, 0, 2)
+                        span: Span::new(0, 0, 0, 3)
                     }
                 ],
                 String::from("d")
@@ -275,7 +275,7 @@ syntax_abuse::tests! {
                             tag: "1",
                             contents: String::from("abc")
                         },
-                        span: Span::new(0, 0, 0, 2)
+                        span: Span::new(0, 0, 0, 3)
                     }
                 ],
                 String::from("d")
@@ -299,7 +299,7 @@ syntax_abuse::tests! {
                             tag: "1",
                             contents: String::from("abc")
                         },
-                        span: Span::new(0, 0, 0, 2)
+                        span: Span::new(0, 0, 0, 3)
                     }
                 ],
                 String::from("d")

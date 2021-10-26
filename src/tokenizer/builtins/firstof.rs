@@ -71,7 +71,7 @@ syntax_abuse::tests! {
                             tag: "Test",
                             contents: String::from("Test")
                         },
-                        span: Span::new(0, 0, 0, 3)
+                        span: Span::new(0, 0, 0, 4)
                     }
                 ]
             )
@@ -87,7 +87,7 @@ syntax_abuse::tests! {
                             tag: "abc",
                             contents: String::from("abc")
                         },
-                        span: Span::new(0, 0, 0, 2)
+                        span: Span::new(0, 0, 0, 3)
                     }
                 ]
             )
@@ -116,7 +116,7 @@ syntax_abuse::tests! {
                         tag: "short",
                         contents: String::from("This")
                     },
-                    span: Span::new(0, 0, 0, 3)
+                    span: Span::new(0, 0, 0, 4)
                 }
             ],
             String::from(" is a test")
