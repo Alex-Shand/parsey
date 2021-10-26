@@ -57,6 +57,7 @@ pub trait Tokenizer {
     fn make_token(&self, data: &[char]) -> Option<Self::Token>;
 }
 
+/// Persistent tokenization state
 struct TokenizationState<T: Tokenizer> {
     tokenizer: Rc<RefCell<T>>,
     chars: Rc<Vec<char>>,
@@ -87,47 +88,79 @@ impl<T: Tokenizer> Clone for TokenizationState<T> {
 
 impl<T: Tokenizer> TokenizationState<T> {
     fn tokenize(mut self) -> Result<T::Token> {
+        // The tokens found so far
         let mut result = Vec::new();
+        // A copy of the state from the last time the tokenizer completed
         let mut candidate = None;
 
         while !self.eof() {
             self.last_result = self.tokenizer.borrow_mut().feed(self.chars[self.progress]);
             match self.last_result {
+                // Nothing to do until the tokenizer yields something or fails
                 State::Pending => self.advance(),
+                // The tokenizer could produce a token at this position. Don't
+                // actually produce a token yet (we need to check it is the
+                // longest possible token) but save the state
                 State::Completed => {
-                    println!("Completed");
+                    // Need to advance across the current character first
                     self.advance();
                     candidate = Some(self.clone());
                 }
+                // The tokenizer can't accept any more input. Work out if it
+                // has a token
                 State::Failed => {
                     if candidate.is_some() {
+                        // The tokenizer completed at some point in the past (any
+                        // number of Pendings can happen between the last Completed
+                        // and now)
+
+                        // Reset the state to the point the tokenizer last
+                        // completed. Resets candidate to None in the process so
+                        // the next Failed will take the other branch
                         self = candidate.take().unwrap();
-                        println!("Next Char: {} ({})", self.chars[self.progress], self.progress);
+                        // Add a token to result without moving the progress
+                        // marker forward (the current character will be fed to
+                        // the tokenizer again in the next loop iteration after
+                        // it has been reset)
                         self.complete(&mut result);
-                        println!("Next Char: {} ({})", self.chars[self.progress], self.progress);
                     } else {
+                        // The tokenizer failed without ever completing, fail
+                        // immediately
                         return self.make_error(result);
                     }
                 }
             }
         }
 
+        // If the tokenizer completes on the last character of the input or only
+        // produces Pending after the last completion the loop above can exit
+        // without using the candidate. If there is one still around restore to
+        // it and produce a token
         if let Some(candidate) = candidate {
             self = candidate;
             self.complete(&mut result);
         }
 
+        // Because of the candidate restore above we might not be at the end of
+        // input anymore but we know there were no completions between the
+        // current position and the end of input so anything left over is
+        // unconsumed
+        if !self.eof() {
+            return self.make_error(result);
+        }
+
+        // If there were no completions we will reach this point with
+        // last_result == Pending and want to produce an error. Failed is
+        // impossible as the main loop either falls back to the last completion
+        // or bails out when it encounters a failure.
         match self.last_result {
-            State::Completed => if self.eof() {
-                Ok(result)
-            } else {
-                self.make_error(result)
-            }
+            State::Completed => Ok(result),
             State::Pending => self.make_error(result),
             State::Failed => unreachable!(),
         }
     }
 
+    /// Update tokenization state based on the current character
     fn advance(&mut self) {
         if self.chars[self.progress] == '\n' {
             self.end_line += 1;
@@ -138,15 +171,22 @@ impl<T: Tokenizer> TokenizationState<T> {
         self.progress += 1;
     }
 
+    /// Produce the error result, errors contain all of the tokens found and any
+    /// input left over
     fn make_error(self, result: Tokens<T::Token>) -> Result<T::Token> {
         Err((result, self.chars[self.token_start..].iter().collect()))
     }
 
+    /// True of the tokenizer has reached end of input, false otherwise
     fn eof(&mut self) -> bool {
         self.progress == self.chars.len()
     }
 
+    /// If the tokenizer produces a token add it to result then update
+    /// tokenization state
     fn complete(&mut self, result: &mut Tokens<T::Token>) {
+        // Tokenizers can return None from make token to consume the input but
+        // not add a token to the result (e.g whitespace or comments)
         if let Some(token) = self
             .tokenizer.borrow()
             .make_token(&self.chars[self.token_start..self.progress]) {
@@ -156,21 +196,22 @@ impl<T: Tokenizer> TokenizationState<T> {
                         self.start_line,
                         self.end_line,
                         self.start_char,
+                        // By this point end_char points at the first character
+                        // not part of the token, we want the span to contain
+                        // the last character that is part of the token
                         self.end_char - 1,
                     )
                 });
         }
 
+        // Reset the tokenizer for the next token
+        //TODO: It seems like the return value of reset should be important here
         let _ = self.tokenizer.borrow_mut().reset();
 
-        if !self.eof() {
-            self.advance();
-            self.progress -= 1;
-            self.end_char -= 1;
-            self.token_start = self.progress;
-            self.start_line = self.end_line;
-            self.start_char = self.end_char;
-        }
+        // Update the variables tracking the beginning of the new token
+        self.token_start = self.progress;
+        self.start_line = self.end_line;
+        self.start_char = self.end_char;
     }
 }
 
