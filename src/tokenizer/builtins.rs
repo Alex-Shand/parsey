@@ -33,7 +33,8 @@ pub struct Token {
 }
 
 trait StateMachine {
-    fn reset(&mut self) -> bool;
+    fn reset(&mut self);
+    fn can_match_empty(&self) -> bool;
     fn feed(&mut self, c: char) -> State;
 }
 
@@ -45,8 +46,12 @@ struct BasicTokenizer<S: StateMachine> {
 impl<S: StateMachine> Tokenizer for BasicTokenizer<S> {
     type Token = Token;
 
-    fn reset(&mut self) -> bool {
-        self.state.reset()
+    fn reset(&mut self) {
+        self.state.reset();
+    }
+
+    fn can_match_empty(&self) -> bool {
+        self.state.can_match_empty()
     }
 
     fn feed(&mut self, c: char) -> State {

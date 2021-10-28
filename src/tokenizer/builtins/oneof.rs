@@ -8,8 +8,11 @@ struct OneOf {
 }
 
 impl StateMachine for OneOf {
-    fn reset(&mut self) -> bool {
+    fn reset(&mut self) {
         self.done = false;
+    }
+
+    fn can_match_empty(&self) -> bool {
         false
     }
 

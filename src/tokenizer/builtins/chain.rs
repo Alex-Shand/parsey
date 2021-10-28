@@ -7,18 +7,24 @@ struct Chain<T> {
 }
 
 impl<T> StateMachine for Chain<T> {
-    fn reset(&mut self) -> bool {
+    fn reset(&mut self) {
         self.failed = false;
         self.progress = 0;
-
-        let mut all_complete_early = true;
         for tokenizer in &mut self.tokenizers {
-            all_complete_early &= tokenizer.reset();
+            tokenizer.reset();
         }
-        all_complete_early
+    }
+
+    fn can_match_empty(&self) -> bool {
+        let mut result = true;
+        for tokenizer in &self.tokenizers {
+            result &= tokenizer.can_match_empty();
+        }
+        result
     }
 
     fn feed(&mut self, c: char) -> State {
+        println!("Saw: {}", c);
         if self.failed || self.progress == self.tokenizers.len() {
             return State::Failed;
         }
@@ -83,6 +89,18 @@ syntax_abuse::tests! {
                 }
             ]
         )
+    }
+
+    testcase! {
+        empty,
+        tokenize("", chain!("chain", literal("", ""), literal("", ""))),
+        Ok(vec![])
+    }
+
+    testcase! {
+        one_empty,
+        tokenize("AB", chain!("chain", literal("", "A"), literal("", ""), literal("B", ""))),
+        Ok(vec![])
     }
 
     testcase! {

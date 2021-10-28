@@ -40,7 +40,10 @@ pub trait Tokenizer {
     ///
     /// This will be called before tokenization starts and after each call to
     /// `make_token`
-    fn reset(&mut self) -> bool;
+    fn reset(&mut self);
+
+    /// True if the tokenizer can match an empty input, false otherwise
+    fn can_match_empty(&self) -> bool;
 
     /// Send a character to the tokenizer
     ///
@@ -93,6 +96,7 @@ impl<T: Tokenizer> TokenizationState<T> {
         // A copy of the state from the last time the tokenizer completed
         let mut candidate = None;
 
+        self.tokenizer.borrow_mut().reset();
         while !self.eof() {
             self.last_result = self.tokenizer.borrow_mut().feed(self.chars[self.progress]);
             match self.last_result {
@@ -202,8 +206,7 @@ impl<T: Tokenizer> TokenizationState<T> {
         }
 
         // Reset the tokenizer for the next token
-        //TODO: It seems like the return value of reset should be important here
-        let _ = self.tokenizer.borrow_mut().reset();
+        self.tokenizer.borrow_mut().reset();
 
         // Update the variables tracking the beginning of the new token
         self.token_start = self.progress;
@@ -217,8 +220,8 @@ impl<T: Tokenizer> TokenizationState<T> {
 /// # Errors
 /// If the tokenizer fails or consumes the whole input without completing it
 /// returns all of the tokens found and the remaining unconsumed input if any
-pub fn tokenize<T, S: AsRef<str>>(input: S, mut tokenizer: impl Tokenizer<Token = T>) -> Result<T> {
-    let already_completed = tokenizer.reset();
+pub fn tokenize<T, S: AsRef<str>>(input: S, tokenizer: impl Tokenizer<Token = T>) -> Result<T> {
+    let already_completed = tokenizer.can_match_empty();
     TokenizationState {
         tokenizer: Rc::new(RefCell::new(tokenizer)),
         chars: Rc::new(input.as_ref().chars().collect()),

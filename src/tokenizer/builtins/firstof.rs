@@ -8,13 +8,19 @@ struct FirstOf<T> {
 impl<T> Tokenizer for FirstOf<T> {
     type Token = T;
 
-    fn reset(&mut self) -> bool {
+    fn reset(&mut self) {
         self.chosen_tokenizer = None;
-        let mut can_complete_early = false;
         for tokenizer in &mut self.tokenizers {
-            can_complete_early = tokenizer.reset();
+            tokenizer.reset();
         }
-        can_complete_early
+    }
+
+    fn can_match_empty(&self) -> bool {
+        let mut result = false;
+        for tokenizer in &self.tokenizers {
+            result = tokenizer.can_match_empty();
+        }
+        result
     }
 
     fn feed(&mut self, c: char) -> State {

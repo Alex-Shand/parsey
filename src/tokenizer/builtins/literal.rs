@@ -6,8 +6,11 @@ struct Literal {
 }
 
 impl StateMachine for Literal {
-    fn reset(&mut self) -> bool {
+    fn reset(&mut self) {
         self.progress = 0;
+    }
+
+    fn can_match_empty(&self) -> bool {
         self.data.is_empty()
     }
 
