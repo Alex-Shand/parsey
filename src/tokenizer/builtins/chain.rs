@@ -6,6 +6,17 @@ struct Chain<T> {
     progress: usize,
 }
 
+impl<T> Chain<T> {
+    fn skip_empty(&mut self) -> bool {
+        let mut skipped = false;
+        while self.progress < self.tokenizers.len() && self.tokenizers[self.progress].can_match_empty() {
+            self.progress += 1;
+            skipped = true;
+        }
+        skipped
+    }
+}
+
 impl<T> StateMachine for Chain<T> {
     fn reset(&mut self) {
         self.failed = false;
@@ -24,23 +35,28 @@ impl<T> StateMachine for Chain<T> {
     }
 
     fn feed(&mut self, c: char) -> State {
-        println!("Saw: {}", c);
         if self.failed || self.progress == self.tokenizers.len() {
             return State::Failed;
         }
-        match self.tokenizers[self.progress].feed(c) {
-            State::Pending => State::Pending,
-            State::Failed => {
-                self.failed = true;
-                State::Failed
-            }
-            //TODO: Should be greedy
-            State::Completed => {
-                self.progress += 1;
-                if self.progress == self.tokenizers.len() {
-                    State::Completed
-                } else {
-                    State::Pending
+
+        loop {
+            match self.tokenizers[self.progress].feed(c) {
+                State::Pending => return State::Pending,
+                State::Failed => {
+                    if !self.skip_empty() {
+                        self.failed = true;
+                        return State::Failed;
+                    }
+                }
+                //TODO: Should be greedy
+                State::Completed => {
+                    self.progress += 1;
+                    let _  = self.skip_empty();
+                    return if self.progress == self.tokenizers.len() {
+                        State::Completed
+                    } else {
+                        State::Pending
+                    }
                 }
             }
         }
@@ -91,16 +107,62 @@ syntax_abuse::tests! {
         )
     }
 
-    testcase! {
-        empty,
-        tokenize("", chain!("chain", literal("", ""), literal("", ""))),
-        Ok(vec![])
-    }
+    tests! {
+        empty:
 
-    testcase! {
-        one_empty,
-        tokenize("AB", chain!("chain", literal("", "A"), literal("", ""), literal("B", ""))),
-        Ok(vec![])
+        testcase! {
+            all,
+            tokenize("", chain!("chain", literal("", ""), literal("", ""))),
+            Ok(vec![])
+        }
+
+        testcase! {
+            front,
+            tokenize("AB", chain!("chain", literal("", ""), literal("", "A"), literal("", "B"))),
+            Ok(
+                vec![
+                    TokenAndSpan {
+                        token: Token {
+                            tag: "chain",
+                            contents: String::from("AB")
+                        },
+                        span: Span::new(0, 0, 0, 2)
+                    }
+                ]
+            )
+        }
+
+        testcase! {
+            middle,
+            tokenize("AB", chain!("chain", literal("", "A"), literal("", ""), literal("", "B"))),
+            Ok(
+                vec![
+                    TokenAndSpan {
+                        token: Token {
+                            tag: "chain",
+                            contents: String::from("AB")
+                        },
+                        span: Span::new(0, 0, 0, 2)
+                    }
+                ]
+            )
+        }
+
+        testcase! {
+            end,
+            tokenize("AB", chain!("chain", literal("", "A"), literal("", "B"), literal("", ""))),
+            Ok(
+                vec![
+                    TokenAndSpan {
+                        token: Token {
+                            tag: "chain",
+                            contents: String::from("AB")
+                        },
+                        span: Span::new(0, 0, 0, 2)
+                    }
+                ]
+            )
+        }
     }
 
     testcase! {
