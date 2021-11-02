@@ -3,7 +3,7 @@ use super::{State, Tokenizer};
 struct LongestOf<T> {
     tokenizers: Vec<Box<dyn Tokenizer<Token = T>>>,
     in_progress: Vec<usize>,
-    last_completed: Option<usize>
+    last_completed: Option<usize>,
 }
 
 impl<T> Tokenizer for LongestOf<T> {
@@ -62,7 +62,7 @@ pub fn longestof<T>(tokenizers: Vec<Box<dyn Tokenizer<Token = T>>>) -> impl Toke
     LongestOf {
         tokenizers,
         in_progress: (0..count).collect(),
-        last_completed: None
+        last_completed: None,
     }
 }
 

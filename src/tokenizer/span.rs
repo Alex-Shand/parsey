@@ -26,12 +26,12 @@ impl Span {
         Span {
             start: CharacterPosition {
                 row: start_line,
-                col: start_char
+                col: start_char,
             },
             end: CharacterPosition {
                 row: end_line,
-                col: end_char
-            }
+                col: end_char,
+            },
         }
     }
 }

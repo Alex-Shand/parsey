@@ -1,4 +1,4 @@
-use parsey::tokenizer::{tokenize, literal};
+use parsey::tokenizer::{literal, tokenize};
 
 fn main() {
     let q = tokenize("Test", literal("Test", "Test"));

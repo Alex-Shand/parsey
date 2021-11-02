@@ -1,9 +1,9 @@
 //! Tokenizer
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::rc::Rc;
 
 pub use builtins::{chain, eat, firstof, literal, longestof, map, oneof, Token};
-pub use span::{ Span, CharacterPosition };
+pub use span::{CharacterPosition, Span};
 
 mod builtins;
 mod span;
@@ -70,7 +70,7 @@ struct TokenizationState<T: Tokenizer> {
     end_line: usize,
     start_char: usize,
     end_char: usize,
-    last_result: State
+    last_result: State,
 }
 
 impl<T: Tokenizer> Clone for TokenizationState<T> {
@@ -84,7 +84,7 @@ impl<T: Tokenizer> Clone for TokenizationState<T> {
             end_line: self.end_line,
             start_char: self.start_char,
             end_char: self.end_char,
-            last_result: self.last_result
+            last_result: self.last_result,
         }
     }
 }
@@ -181,7 +181,7 @@ impl<T: Tokenizer> TokenizationState<T> {
         Err((result, self.chars[self.token_start..].iter().collect()))
     }
 
-    /// True of the tokenizer has reached end of input, false otherwise
+    /// True if the tokenizer has reached end of input, false otherwise
     fn eof(&mut self) -> bool {
         self.progress == self.chars.len()
     }
@@ -192,17 +192,19 @@ impl<T: Tokenizer> TokenizationState<T> {
         // Tokenizers can return None from make token to consume the input but
         // not add a token to the result (e.g whitespace or comments)
         if let Some(token) = self
-            .tokenizer.borrow()
-            .make_token(&self.chars[self.token_start..self.progress]) {
-                result.push(TokenAndSpan {
-                    token,
-                    span: Span::new(
-                        self.start_line,
-                        self.end_line,
-                        self.start_char,
-                        self.end_char,
-                    )
-                });
+            .tokenizer
+            .borrow()
+            .make_token(&self.chars[self.token_start..self.progress])
+        {
+            result.push(TokenAndSpan {
+                token,
+                span: Span::new(
+                    self.start_line,
+                    self.end_line,
+                    self.start_char,
+                    self.end_char,
+                ),
+            });
         }
 
         // Reset the tokenizer for the next token
@@ -219,7 +221,7 @@ impl<T: Tokenizer> TokenizationState<T> {
 ///
 /// # Errors
 /// If the tokenizer fails or consumes the whole input without completing it
-/// returns all of the tokens found and the remaining unconsumed input if any
+/// returns all of the tokens found and the remaining input if any
 pub fn tokenize<T, S: AsRef<str>>(input: S, tokenizer: impl Tokenizer<Token = T>) -> Result<T> {
     let already_completed = tokenizer.can_match_empty();
     TokenizationState {
@@ -231,7 +233,11 @@ pub fn tokenize<T, S: AsRef<str>>(input: S, tokenizer: impl Tokenizer<Token = T>
         end_line: 0,
         start_char: 0,
         end_char: 0,
-        last_result: if already_completed { State::Completed } else { State::Pending }
+        last_result: if already_completed {
+            State::Completed
+        } else {
+            State::Pending
+        },
     }
     .tokenize()
 }

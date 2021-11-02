@@ -32,6 +32,8 @@ pub struct Token {
     pub contents: String,
 }
 
+/// Tokenizer trait without the `make_token` function which is the same for all
+/// tokenizers based on `BasicTokenizer`
 trait StateMachine {
     fn reset(&mut self);
     fn can_match_empty(&self) -> bool;

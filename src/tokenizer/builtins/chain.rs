@@ -9,7 +9,9 @@ struct Chain<T> {
 impl<T> Chain<T> {
     fn skip_empty(&mut self) -> bool {
         let mut skipped = false;
-        while self.progress < self.tokenizers.len() && self.tokenizers[self.progress].can_match_empty() {
+        while self.progress < self.tokenizers.len()
+            && self.tokenizers[self.progress].can_match_empty()
+        {
             self.progress += 1;
             skipped = true;
         }
@@ -51,12 +53,12 @@ impl<T> StateMachine for Chain<T> {
                 //TODO: Should be greedy
                 State::Completed => {
                     self.progress += 1;
-                    let _  = self.skip_empty();
+                    let _ = self.skip_empty();
                     return if self.progress == self.tokenizers.len() {
                         State::Completed
                     } else {
                         State::Pending
-                    }
+                    };
                 }
             }
         }
