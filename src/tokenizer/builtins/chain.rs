@@ -7,15 +7,8 @@ struct Chain<T> {
 }
 
 impl<T> Chain<T> {
-    fn skip_empty(&mut self) -> bool {
-        let mut skipped = false;
-        while self.progress < self.tokenizers.len()
-            && self.tokenizers[self.progress].can_match_empty()
-        {
-            self.progress += 1;
-            skipped = true;
-        }
-        skipped
+    fn the_rest_are_empty(&mut self) -> bool {
+        self.tokenizers[self.progress..].iter().all(Tokenizer::can_match_empty)
     }
 }
 
@@ -29,11 +22,7 @@ impl<T> StateMachine for Chain<T> {
     }
 
     fn can_match_empty(&self) -> bool {
-        let mut result = true;
-        for tokenizer in &self.tokenizers {
-            result &= tokenizer.can_match_empty();
-        }
-        result
+        self.tokenizers.iter().all(|t| t.can_match_empty())
     }
 
     fn feed(&mut self, c: char) -> State {
@@ -41,20 +30,30 @@ impl<T> StateMachine for Chain<T> {
             return State::Failed;
         }
 
+        // The loop allows the match arms to jump back to the top if the match
+        // by not returning
         loop {
             match self.tokenizers[self.progress].feed(c) {
                 State::Pending => return State::Pending,
                 State::Failed => {
-                    if !self.skip_empty() {
-                        self.failed = true;
+                    // The current tokenizer can't accept the current character
+                    // but if it can match the empty string we can skip it
+                    if self.tokenizers[self.progress].can_match_empty() {
+                        self.progress += 1;
+                    } else {
                         return State::Failed;
                     }
                 }
-                //TODO: Should be greedy
                 State::Completed => {
+                    //TODO: Need to implement the Completed, Failed sequence
+                    // here before advancing progress
                     self.progress += 1;
-                    let _ = self.skip_empty();
-                    return if self.progress == self.tokenizers.len() {
+
+                    // If the last tokenizer just completed or the remaining
+                    // tokenizers can match the empty string then complete. The
+                    // main tokenizer loop will still feed more characters if
+                    // there are any
+                    return if self.progress == self.tokenizers.len() || self.the_rest_are_empty() {
                         State::Completed
                     } else {
                         State::Pending

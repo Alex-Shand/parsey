@@ -2,7 +2,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-pub use builtins::{chain, eat, firstof, literal, longestof, map, oneof, Token};
+pub use builtins::{chain, eat, firstof, literal, longestof, map, oneof, Token, empty};
 pub use span::{CharacterPosition, Span};
 
 mod builtins;
@@ -32,6 +32,7 @@ pub enum State {
 }
 
 /// Trait for custom Tokenizers
+#[objective::objective]
 pub trait Tokenizer {
     /// Token type
     type Token;

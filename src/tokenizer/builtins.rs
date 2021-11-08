@@ -14,6 +14,8 @@ pub use longestof::longestof;
 pub use map::map;
 #[allow(unreachable_pub)]
 pub use oneof::oneof;
+#[allow(unreachable_pub)]
+pub use empty::empty;
 
 mod chain;
 mod eater;
@@ -22,6 +24,7 @@ mod literal;
 mod longestof;
 mod map;
 mod oneof;
+mod empty;
 
 /// Default token type for builtin tokenizers
 #[derive(Debug, Clone, PartialEq)]

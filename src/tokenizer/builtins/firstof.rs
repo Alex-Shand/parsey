@@ -16,11 +16,7 @@ impl<T> Tokenizer for FirstOf<T> {
     }
 
     fn can_match_empty(&self) -> bool {
-        let mut result = false;
-        for tokenizer in &self.tokenizers {
-            result = tokenizer.can_match_empty();
-        }
-        result
+        self.tokenizers.iter().any(Tokenizer::can_match_empty)
     }
 
     fn feed(&mut self, c: char) -> State {
