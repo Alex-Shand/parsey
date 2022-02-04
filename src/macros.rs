@@ -79,7 +79,7 @@ macro_rules! grammar_aux {
     // accumulator. Assume that they represent a rule (this is caused by missing
     // the ; from the last rule).
     ([$($rule:tt)+][$($rules:expr)*]) => {
-        $crate::grammar_aux!([][$($rules)* $crate::rule!($($rule)*)]);
+        $crate::grammar_aux!([][$($rules)* $crate::rule!($($rule)*)])
     };
     // Found a ;. Assume everything preceding it (now in the first accumulator)
     // is one rule. The rule is constructed with rule! then pushed onto the
@@ -95,7 +95,7 @@ macro_rules! grammar_aux {
 }
 
 /// Macro to construct a [Grammar]. Expands to appropriate calls to
-/// [Grammar::new] and [Rule::new]
+/// [`Grammar::new`] and [`Rule::new`]
 ///
 /// # Syntax
 /// ```ignore
@@ -106,10 +106,10 @@ macro_rules! grammar_aux {
 /// ```
 ///
 /// # Panics
-/// See [Grammar::new] and [Rule::new]
+/// See [`Grammar::new`] and [`Rule::new`]
 ///
 /// # Examples
-/// Within the rule body an unquoted rule name becomes [Symbol::Rule]
+/// Within the rule body an unquoted rule name becomes [`Symbol::Rule`]
 /// ```
 /// # use parsey::grammar;
 /// # use parsey::grammar::{ Grammar, Rule, Symbol };
@@ -125,7 +125,7 @@ macro_rules! grammar_aux {
 ///     ])
 /// )
 /// ```
-/// A bare string becomes a sequence of [Symbol::Literal] (one for each character)
+/// A bare string becomes a sequence of [`Symbol::Literal`] (one for each character)
 /// ```
 /// # use parsey::grammar;
 /// # use parsey::grammar::{ Grammar, Rule, Symbol };
@@ -141,7 +141,7 @@ macro_rules! grammar_aux {
 ///     ])
 /// )
 /// ```
-/// A string wrapped in `[]` is [Symbol::OneOf]
+/// A string wrapped in `[]` is [`Symbol::OneOf`]
 /// ```
 /// # use std::collections::HashSet;
 /// # use parsey::grammar;

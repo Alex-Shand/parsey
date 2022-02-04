@@ -4,12 +4,18 @@ version = 3
 
 [[package]]
 name = "ansi_term"
-version = "0.11.0"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee49baf6cb617b853aa8d93bf420db2383fab46d314482ca2803b40d5fde979b"
+checksum = "d52a9bb7ec0cf484c551830a7ce27bd20d67eac647e1befb56b0be4ee39a55d2"
 dependencies = [
  "winapi",
 ]
+
+[[package]]
+name = "anyhow"
+version = "1.0.45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee10e43ae4a853c0a3591d4e2ada1719e553be18199d9da9d4a83f5927c2f5c7"
 
 [[package]]
 name = "ctor"
@@ -33,10 +39,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "difference"
-version = "2.0.0"
+name = "diff"
+version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "524cbf6897b527295dff137cec09ecf3a05f4fddffd7dfcd1585403449e74198"
+checksum = "0e25ea47919b1560c4e3b7fe0aaab9becf5b84a10325ddf7db0f0ba5e1026499"
+
+[[package]]
+name = "glob"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b919933a397b79c37e33b77bb2aa3dc8eb6e165ad809e58ff75bc7db2e34574"
+
+[[package]]
+name = "itoa"
+version = "0.4.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b71991ff56294aa922b450139ee08b3bfc70982c6b2c7562771375cf73542dd4"
 
 [[package]]
 name = "lazy_static"
@@ -47,9 +65,9 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 [[package]]
 name = "objective"
 version = "0.1.0"
+source = "git+https://github.com/Alex-Shand/objective#560fbfbb193d729b66e90dac51946e0db93d76aa"
 dependencies = [
  "proc",
- "syntax-abuse",
 ]
 
 [[package]]
@@ -72,35 +90,43 @@ dependencies = [
 
 [[package]]
 name = "pretty_assertions"
-version = "0.6.1"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f81e1644e1b54f5a68959a29aa86cde704219254669da328ecfdf6a1f09d427"
+checksum = "ec0cfe1b2403f172ba0f234e500906ee0a3e493fb81092dac23ebefe129301cc"
 dependencies = [
  "ansi_term",
  "ctor",
- "difference",
+ "diff",
  "output_vt100",
 ]
 
 [[package]]
 name = "proc"
 version = "0.1.0"
+source = "git+https://github.com/Alex-Shand/proc#656c2fd5d993d0d6af20f01ad688b3363c6e8895"
 dependencies = [
+ "anyhow",
+ "pretty_assertions",
  "proc-common",
  "proc-macro2",
  "proc0",
+ "proc1",
+ "proc2",
  "quote",
  "syn",
+ "trybuild",
 ]
 
 [[package]]
 name = "proc-common"
 version = "0.1.0"
+source = "git+https://github.com/Alex-Shand/proc#656c2fd5d993d0d6af20f01ad688b3363c6e8895"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
  "syn",
+ "trybuild",
 ]
 
 [[package]]
@@ -125,12 +151,39 @@ dependencies = [
 [[package]]
 name = "proc0"
 version = "0.1.0"
+source = "git+https://github.com/Alex-Shand/proc#656c2fd5d993d0d6af20f01ad688b3363c6e8895"
 dependencies = [
  "proc-common",
  "proc-macro2",
  "quote",
  "syn",
  "syntax-abuse",
+]
+
+[[package]]
+name = "proc1"
+version = "0.1.0"
+source = "git+https://github.com/Alex-Shand/proc#656c2fd5d993d0d6af20f01ad688b3363c6e8895"
+dependencies = [
+ "proc-common",
+ "proc-macro2",
+ "proc0",
+ "quote",
+ "syn",
+ "syntax-abuse",
+]
+
+[[package]]
+name = "proc2"
+version = "0.1.0"
+source = "git+https://github.com/Alex-Shand/proc#656c2fd5d993d0d6af20f01ad688b3363c6e8895"
+dependencies = [
+ "anyhow",
+ "proc-common",
+ "proc-macro2",
+ "proc1",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -143,10 +196,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "ryu"
+version = "1.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "71d301d4193d031abdd79ff7e3dd721168a9572ef3fe51a1517aba235bd8f86e"
+
+[[package]]
 name = "serde"
 version = "1.0.130"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f12d06de37cf59146fbdecab66aa99f9fe4f78722e3607577a5375d66bd0c913"
+dependencies = [
+ "serde_derive",
+]
+
+[[package]]
+name = "serde_derive"
+version = "1.0.130"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7bc1a1ab1961464eae040d96713baa5a724a8152c1222492465b54322ec508b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "serde_json"
+version = "1.0.70"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e277c495ac6cd1a01a58d0a0c574568b4d1ddf14f59965c6a58b8d96400b54f3"
+dependencies = [
+ "itoa",
+ "ryu",
+ "serde",
+]
 
 [[package]]
 name = "syn"
@@ -162,10 +246,19 @@ dependencies = [
 [[package]]
 name = "syntax-abuse"
 version = "0.1.0"
-source = "git+https://github.com/Alex-Shand/syntax-abuse#497181498c39ad34ca24cf4953d84042fb801881"
+source = "git+https://github.com/Alex-Shand/syntax-abuse#b71ab6e548664c87919725af1aea9929b91dcb09"
 dependencies = [
  "lazy_static",
  "pretty_assertions",
+]
+
+[[package]]
+name = "termcolor"
+version = "1.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2dfed899f0eb03f32ee8c6a0aabdb8a7949659e3466561fc0adf54e26d88c5f4"
+dependencies = [
+ "winapi-util",
 ]
 
 [[package]]
@@ -198,6 +291,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "trybuild"
+version = "1.0.52"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "150e726dc059e6fbd4fce3288f5bb3cf70128cf63b0dde23b938a3cad810fb23"
+dependencies = [
+ "glob",
+ "lazy_static",
+ "serde",
+ "serde_json",
+ "termcolor",
+ "toml",
+]
+
+[[package]]
 name = "unicode-xid"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -218,6 +325,15 @@ name = "winapi-i686-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac3b87c63620426dd9b991e5ce0329eff545bccbbb34f3be09ff6fb6ab51b7b6"
+
+[[package]]
+name = "winapi-util"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "70ec6ce85bb158151cae5e5c87f95a8e97d2c0c4b001223f33a334e3ce5de178"
+dependencies = [
+ "winapi",
+]
 
 [[package]]
 name = "winapi-x86_64-pc-windows-gnu"
